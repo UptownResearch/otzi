@@ -10,8 +10,8 @@ BASE_URL = "https://testnet.bitmex.com/api/v1/"
 # BASE_URL = "https://www.bitmex.com/api/v1/" # Once you're ready, uncomment this.
 
 # The BitMEX API requires permanent API keys. Go to https://testnet.bitmex.com/api/apiKeys to fill these out.
-API_KEY = ""
-API_SECRET = ""
+API_KEY = "74RplxlmIWNsm_PMe6uwH-xH"
+API_SECRET = "qtYZT8SqMrjdieThz10rOIf0h09e93tSbULqIp2lOmwDZ_Cd"
 
 
 ########################################################################################################################
@@ -79,7 +79,7 @@ POST_ONLY = False
 ########################################################################################################################
 
 # If true, don't set up any orders, just say what we would do
-# DRY_RUN = True
+#DRY_RUN = True
 DRY_RUN = False
 
 # How often to re-check and replace orders.
@@ -117,3 +117,10 @@ WATCHED_FILES = [join('market_maker', 'market_maker.py'), join('market_maker', '
 
 # Specify the contracts that you hold. These will be used in portfolio calculations.
 CONTRACTS = ['XBTUSD']
+
+########################################################################################################################
+# Paperless Tracker
+########################################################################################################################
+paperless = True
+#paperless = False
+
