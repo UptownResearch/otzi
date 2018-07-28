@@ -1,6 +1,7 @@
 
 from market_maker.settings import settings
 from market_maker import market_maker
+from market_maker.utils import constants
 import copy
 import datetime
 
@@ -27,18 +28,21 @@ class paperless_tracker:
             self.buy_partially_filled = []
             self.sell_partially_filled = []
             self.closed = []
-            self.exange = market_maker.ExchangeInterface(settings.DRY_RUN)
-            self.exange2 = market_maker.ExchangeInterface2(settings.DRY_RUN)
+            self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
             self.timestamp = None
             paperless_tracker.__instance = self
 
-    def track_orders_created(self, origla_buy_orders, original_sell_orders):
+    def track_orders_created(self, order):
 
         if settings.paperless == False:
             return None
-
-        buy_orders = copy.deepcopy(origla_buy_orders)
-        sell_orders = copy.deepcopy(original_sell_orders)
+        buy_orders = []
+        sell_orders = []
+        for orders in order:
+            if orders["side"] == "Buy":
+                buy_orders.append(copy.deepcopy(orders))
+            else:
+                sell_orders.append(copy.deepcopy(orders))
 
         for order in buy_orders:
             order["orderQty"] = order["orderQty"] / order["price"]
@@ -51,7 +55,7 @@ class paperless_tracker:
         if len(sell_orders) > 0:
             self.sell_orders_created.extend(sell_orders)
 
-        order_book = self.exange2.market_deep()
+        order_book = self.exchange.market_deep()
 
         ask = []
         bid = []
@@ -61,6 +65,12 @@ class paperless_tracker:
             else:
                 bid.append(orders)
 
+        for orders in buy_orders:
+            self.filled.append(orders)
+
+        for orders in sell_orders:
+            self.filled.append(orders)
+        return 0
         for orders in buy_orders:
             orignal_size = orders["orderQty"]
             orders["orderQty"] = 0
@@ -104,7 +114,7 @@ class paperless_tracker:
         if settings.paperless == False:
             return None
 
-        trades = self.exange2.recent_trades()
+        trades = self.exchange.recent_trades()
 
         sell = []
         buy = []
@@ -185,14 +195,6 @@ class paperless_tracker:
         sell_average = 0
         sell_quantity = 0
 
-        for order in self.filled:
-            if order["side"] == "Buy":
-                buy_average = buy_average + (order["orderQty"] * order["price"])
-                buy_quantity = buy_quantity + order["orderQty"]
-            else:
-                sell_average = sell_average + (order["orderQty"] * order["price"])
-                sell_quantity = sell_quantity + order["orderQty"]
-
         for order in self.closed:
             if order["side"] == "Buy":
                 buy_average = buy_average + (order["orderQty"] * order["price"])
@@ -200,14 +202,6 @@ class paperless_tracker:
             else:
                 sell_average = sell_average + (order["orderQty"] * order["price"])
                 sell_quantity = sell_quantity + order["orderQty"]
-
-        for order in self.buy_partially_filled:
-            buy_average = buy_average + (order[0]["orderQty"] * order[0]["price"])
-            buy_quantity = buy_quantity + order[0]["orderQty"]
-
-        for order in self.sell_partially_filled:
-            sell_average = sell_average + (order[0]["orderQty"] * order[0]["price"])
-            sell_quantity = sell_quantity + order[0]["orderQty"]
 
         if (buy_quantity > 0):
             buy_average = buy_average / buy_quantity
@@ -219,15 +213,19 @@ class paperless_tracker:
         else:
             sell_average = 0
 
-        funds = (sell_average - buy_average) * buy_quantity
-        ticker = self.exange.get_ticker()
+        funds = 0
+        if buy_quantity > 0:
+            funds = (sell_average - buy_average) * buy_quantity
+        if sell_quantity > 0:
+            funds = (sell_average - buy_average) * sell_quantity
+
+        ticker = self.exchange.get_ticker()
         mid = ticker["mid"]
         in_btc = funds / mid
 
+        return {"marginBalance": (settings.DRY_BTC + in_btc) * constants.XBt_TO_XBT}
 
-        return settings.DRY_BTC + in_btc
-
-    def get_position(self):
+    def get_position(self, symbol):
 
         buy_average = 0
         buy_quantity = 0
@@ -262,15 +260,15 @@ class paperless_tracker:
             sell_average = 0
 
         if buy_average == 0 and sell_average == 0:
-            return None
+            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
         elif buy_average == 0 and sell_average > 0:
-            return ["Short", sell_average, sell_quantity]
+            return {'avgCostPrice': 0, 'avgEntryPrice': sell_average, 'currentQty': sell_quantity, 'symbol': symbol}
         elif buy_average > 0 and sell_average == 0:
-            return ["Long", buy_average, buy_quantity]
+            return {'avgCostPrice': 0, 'avgEntryPrice': buy_average, 'currentQty': buy_quantity, 'symbol': symbol}
 
         new_qty = buy_quantity - sell_quantity
         if new_qty == 0:
-            return None
+            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
         X2 = sell_average - (buy_quantity * ((sell_average - buy_average) / new_qty))
         Xcheck = buy_average - ((-1 * sell_quantity) * ((buy_average - sell_average) / new_qty))
 
@@ -280,13 +278,14 @@ class paperless_tracker:
             pass
 
         if new_qty > 0:
-            return ["Long", X2, new_qty]
+            return {'avgCostPrice': 0, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
+
         elif new_qty < 0:
-            return ["Short", X2, new_qty]
+            return {'avgCostPrice': 0, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
 
     def close_positions(self):
 
-        if settings.paperless == False and not settings.ComparisonMode:
+        if settings.paperless == False:
             return None
 
         auxsum = 0
@@ -314,11 +313,45 @@ class paperless_tracker:
 
     def loop_functions(self):
 
-        if settings.paperless == False and not settings.ComparisonMode:
+        if settings.paperless == False:
             return None
 
         self.track_orders()
         self.close_positions()
+
+    def current_contract(self):
+        count = 0
+
+        for orders in self.filled:
+            if orders["side"] == "Buy":
+                count += orders["orderQty"]
+            else:
+                count -= orders["orderQty"]
+
+        for orders in self.buy_partially_filled:
+            count += orders[0]["orderQty"]
+
+        for orders in self.sell_partially_filled:
+            count -= orders[0]["orderQty"]
+
+        return count
+
+    def contract_traded_this_run(self):
+        count = 0
+
+        for orders in self.filled:
+            count += orders["orderQty"]
+
+        for orders in self.buy_partially_filled:
+            count += orders[0]["orderQty"]
+
+        for orders in self.sell_partially_filled:
+            count += orders[0]["orderQty"]
+
+        for orders in self.closed:
+            count += orders["orderQty"]
+
+        return count
 
     def insert_to_log(self, action):
 
