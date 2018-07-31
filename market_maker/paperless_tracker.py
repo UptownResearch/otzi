@@ -66,12 +66,6 @@ class paperless_tracker:
                 bid.append(orders)
 
         for orders in buy_orders:
-            self.filled.append(orders)
-
-        for orders in sell_orders:
-            self.filled.append(orders)
-        return 0
-        for orders in buy_orders:
             orignal_size = orders["orderQty"]
             orders["orderQty"] = 0
             for i in range(len(ask) - 1, -1, -1):
@@ -227,6 +221,7 @@ class paperless_tracker:
 
     def get_position(self, symbol):
 
+        '''
         buy_average = 0
         buy_quantity = 0
 
@@ -236,18 +231,18 @@ class paperless_tracker:
         for order in self.filled:
             if order["side"] == "Buy":
                 buy_average = buy_average + (order["orderQty"] * order["price"])
-                buy_quantity = buy_quantity + order["orderQty"]
+                buy_quantity = buy_quantity + (order["orderQty"] * order["price"])
             else:
                 sell_average = sell_average + (order["orderQty"] * order["price"])
-                sell_quantity = sell_quantity + order["orderQty"]
+                sell_quantity = sell_quantity + (order["orderQty"] * order["price"])
 
         for order in self.buy_partially_filled:
             buy_average = buy_average + (order[0]["orderQty"] * order[0]["price"])
-            buy_quantity = buy_quantity + order[0]["orderQty"]
+            buy_quantity = buy_quantity + (order[0]["orderQty"] * order[0]["price"])
 
         for order in self.sell_partially_filled:
             sell_average = sell_average + (order[0]["orderQty"] * order[0]["price"])
-            sell_quantity = sell_quantity + order[0]["orderQty"]
+            sell_quantity = sell_quantity + (order[0]["orderQty"] * order[0]["price"])
 
         if (buy_quantity > 0):
             buy_average = buy_average / buy_quantity
@@ -262,26 +257,40 @@ class paperless_tracker:
         if buy_average == 0 and sell_average == 0:
             return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
         elif buy_average == 0 and sell_average > 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': sell_average, 'currentQty': sell_quantity, 'symbol': symbol}
+            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
         elif buy_average > 0 and sell_average == 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': buy_average, 'currentQty': buy_quantity, 'symbol': symbol}
+            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
+        '''
 
-        new_qty = buy_quantity - sell_quantity
+        buy_quantity = 0
+        sell_quantity = 0
+        sumAux = 0
+
+        for orders in self.filled:
+            sumAux += ((orders["orderQty"] * orders["price"]) / orders["price"])
+            buy_quantity = buy_quantity + (orders["orderQty"] * orders["price"])
+
+        for orders in self.buy_partially_filled:
+            sumAux += ((orders[0]["orderQty"] * orders[0]["price"]) / orders[0]["price"])
+            buy_quantity = buy_quantity + (orders[0]["orderQty"] * orders[0]["price"])
+
+        for orders in self.sell_partially_filled:
+            sumAux += ((orders[0]["orderQty"] * orders[0]["price"]) / orders[0]["price"])
+            buy_quantity = buy_quantity + (orders[0]["orderQty"] * orders[0]["price"])
+
+        new_qty = buy_quantity + sell_quantity
         if new_qty == 0:
             return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
-        X2 = sell_average - (buy_quantity * ((sell_average - buy_average) / new_qty))
-        Xcheck = buy_average - ((-1 * sell_quantity) * ((buy_average - sell_average) / new_qty))
+        #X2 = sell_average - (buy_quantity * ((sell_average - buy_average) / new_qty))
+        #total_quantity / ((quantity_1 / price_1) + (quantity_2 / price_2)) = entry_price
 
-        if X2 != Xcheck:
-            print("Problemo")
-        else:
-            pass
+        X2 = new_qty / sumAux
 
         if new_qty > 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
+            return {'avgCostPrice': X2, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
 
         elif new_qty < 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
+            return {'avgCostPrice': X2, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
 
     def close_positions(self):
 
@@ -358,6 +367,22 @@ class paperless_tracker:
         file = open("trading_log.txt", "a+")
         file.write(str(datetime.datetime.now()) + " - INFO - paperless_tracker" + action + "\n")
         file.close()
+
+    def get_orders(self):
+
+        final = []
+
+        for orders in self.filled:
+            final.append(orders)
+
+        for orders in self.buy_partially_filled:
+            final.append(orders[0])
+
+        for orders in self.sell_partially_filled:
+            final.append(orders[0])
+
+        return final
+
 
 
 

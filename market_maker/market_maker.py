@@ -102,13 +102,6 @@ class ExchangeInterface:
 
     def calc_delta(self):
 
-        if settings.paperless:
-            delta = {
-                "spot": 0,
-                "mark_price": 0,
-                "basis": 0}
-            return delta
-
         """Calculate currency delta for portfolio"""
         portfolio = self.get_portfolio()
         spot_delta = 0
@@ -149,7 +142,7 @@ class ExchangeInterface:
 
     def get_margin(self):
 
-        if self.dry_run:
+        if self.dry_run and settings.paperless == False:
             return {'marginBalance': float(settings.DRY_BTC), 'availableFunds': float(settings.DRY_BTC)}
 
         if settings.paperless:
@@ -159,8 +152,13 @@ class ExchangeInterface:
         return self.bitmex.funds()
 
     def get_orders(self):
-        if self.dry_run:
+        if self.dry_run and settings.paperless == False:
             return []
+
+        if settings.paperless:
+            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            return pp_traker.get_orders()
+
         return self.bitmex.open_orders()
 
     def get_highest_buy(self):
@@ -209,13 +207,18 @@ class ExchangeInterface:
             raise errors.MarketEmptyError("Orderbook is empty, cannot quote")
 
     def amend_bulk_orders(self, orders):
-        if self.dry_run:
+        if self.dry_run and settings.paperless == False:
             return orders
+
+        if settings.paperless:
+            return orders
+
         return self.bitmex.amend_bulk_orders(orders)
 
     def create_bulk_orders(self, orders):
-        if self.dry_run:
+        if self.dry_run and settings.paperless == False:
             return orders
+
         if settings.paperless:
             ppl_tracker = paperless_tracker.paperless_tracker.getInstance()
             ppl_tracker.track_orders_created(orders)
@@ -224,7 +227,7 @@ class ExchangeInterface:
         return self.bitmex.create_bulk_orders(orders)
 
     def cancel_bulk_orders(self, orders):
-        if self.dry_run:
+        if self.dry_run and settings.paperless == False:
             return orders
 
         if settings.paperless:
@@ -240,7 +243,7 @@ class ExchangeInterface:
 
     def contracts_this_run(self):
 
-        if self.dry_run:
+        if self.dry_run and settings.paperless == False:
             self.get_delta()
 
         if settings.paperless:
@@ -599,13 +602,12 @@ def margin(instrument, quantity, price):
 def run():
     logger.info('BitMEX Market Maker Version: %s\n' % constants.VERSION)
 
-    om = CustomOrderManager()
+    om = OrderManager()
     # Try/except just keeps ctrl-c from printing an ugly stacktrace
     try:
         om.run_loop()
     except (KeyboardInterrupt, SystemExit):
         sys.exit()
-
 
 
 
