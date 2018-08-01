@@ -49,7 +49,7 @@ class BitMEXWebsocket():
         subscriptions = [sub + ':' + symbol for sub in ["quote", "trade"]]
         subscriptions += ["instrument"]  # We want all of them
         if self.shouldAuth:
-            subscriptions += [sub + ':' + symbol for sub in ["order", "execution"]]
+            subscriptions += [sub + ':' + symbol for sub in ["order", "execution", "orderBookL2"]]
             subscriptions += ["margin", "position"]
 
         # Get WS URL and connect.
@@ -108,7 +108,8 @@ class BitMEXWebsocket():
         return self.data['margin'][0]
 
     def market_depth(self, symbol):
-        raise NotImplementedError('orderBook is not subscribed; use askPrice and bidPrice on instrument')
+        return self.data['orderBookL2']
+        #raise NotImplementedError('orderBook is not subscribed; use askPrice and bidPrice on instrument')
         # return self.data['orderBook25'][0]
 
     def open_orders(self, clOrdIDPrefix):
