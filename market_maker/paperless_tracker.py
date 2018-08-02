@@ -4,6 +4,7 @@ from market_maker import market_maker
 from market_maker.utils import constants
 import copy
 import datetime
+import random
 
 
 class paperless_tracker:
@@ -28,8 +29,10 @@ class paperless_tracker:
             self.buy_partially_filled = []
             self.sell_partially_filled = []
             self.closed = []
+            self.random_base = random.randint(0, 100000)
             self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
             self.timestamp = None
+            self.auxFunds = 0
             paperless_tracker.__instance = self
 
     def track_orders_created(self, order):
@@ -65,43 +68,99 @@ class paperless_tracker:
             else:
                 bid.append(orders)
 
+        '''
         for orders in buy_orders:
-            orignal_size = orders["orderQty"]
-            orders["orderQty"] = 0
+            self.random_base += 1
+            orders["orderID"] = self.random_base
+            orders["cumQty"] = orders["orderQty"]
+            orders["leavesQty"] = 0
+            self.filled.append(orders)
+
+        for orders in sell_orders:
+            self.random_base += 1
+            orders["orderID"] = self.random_base
+            orders["cumQty"] = orders["orderQty"]
+            orders["leavesQty"] = 0
+            self.filled.append(orders)
+
+        orde = {}
+        orde["orderQty"] = 3500 / 7000
+        orde["cumQty"] = 3500 / 7000
+        orde["leavesQty"] = order["orderQty"] - order["cumQty"]
+        orde["orderID"] = 250
+        orde["price"] = 7000
+        orde["side"] = "Buy"
+        self.filled.append(orde)
+
+        orde = {}
+        orde["orderQty"] = 3000 / 6000
+        orde["cumQty"] = 3000 / 6000
+        orde["leavesQty"] = order["orderQty"] - order["cumQty"]
+        orde["orderID"] = 251
+        orde["price"] = 6000
+        orde["side"] = "Buy"
+        self.filled.append(orde)
+
+        orde = {}
+        orde["orderQty"] = 5000 / 5000
+        orde["cumQty"] = 5000 / 5000
+        orde["leavesQty"] = order["orderQty"] - order["cumQty"]
+        orde["orderID"] = 251
+        orde["price"] = 5000
+        orde["side"] = "Sell"
+        self.filled.append(orde)
+
+        return 0
+        '''
+
+        for orders in buy_orders:
+            self.random_base += 1
+            orders["orderID"] = self.random_base
+            orders["cumQty"] = 0
+            orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
             for i in range(len(ask) - 1, -1, -1):
                 temp = ask[i]
                 if orders["price"] >= temp["price"] and temp["size"] > 0:
-                    if (orignal_size - orders["orderQty"]) >= temp["size"]:
-                        orders["orderQty"] = orders["orderQty"] + temp["size"]
-                        self.insert_to_log("Order Partially Filled - " + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                    if (orders["orderQty"] - orders["cumQty"]) >= temp["size"]:
+                        orders["cumQty"] = orders["cumQty"] + temp["size"]
+                        orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+                        self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
                         temp["size"] = 0
                     else:
-                        temp["size"] = temp["size"] - (orignal_size - orders["orderQty"])
-                        orders["orderQty"] = orignal_size
+                        temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
+                        orders["cumQty"] = orders["orderQty"]
+                        orders["leavesQty"] = 0
                         self.filled.append(orders)
-                        self.insert_to_log("Order Filled - " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                        self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
                         break
             else:
-                self.buy_partially_filled.append((orders, orignal_size))
+                self.buy_partially_filled.append(orders)
+                self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
 
         for orders in sell_orders:
-            orignal_size = orders["orderQty"]
-            orders["orderQty"] = 0
+            self.random_base += 1
+            orders["orderID"] = self.random_base
+            orders["cumQty"] = 0
+            orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
             for i in range(0, len(bid)):
                 temp = bid[i]
                 if orders["price"] <= temp["price"] and temp["size"] > 0:
-                    if (orignal_size - orders["orderQty"]) >= temp["size"]:
-                        orders["orderQty"] = orders["orderQty"] + temp["size"]
-                        self.insert_to_log("Order Partially Filled - " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                    if (orders["orderQty"] - orders["cumQty"]) >= temp["size"]:
+                        orders["orderQty"] = orders["orderQty"]
+                        orders["cumQty"] = orders["cumQty"] + temp["size"]
+                        orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+                        self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
                         temp["size"] = 0
                     else:
-                        temp["size"] = temp["size"] - (orignal_size - orders["orderQty"])
-                        orders["orderQty"] = orignal_size
+                        temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
+                        orders["cumQty"] = orders["orderQty"]
+                        orders["leavesQty"] = 0
                         self.filled.append(orders)
-                        self.insert_to_log("Order Filled - " + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                        self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
                         break
             else:
-                self.sell_partially_filled.append((orders, orignal_size))
+                self.sell_partially_filled.append(orders)
+                self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
 
     def track_orders(self):
 
@@ -120,42 +179,50 @@ class paperless_tracker:
                 buy.append(orders)
 
         for orders in self.buy_partially_filled:
-            orignal_size = orders[1]
+            orignal_size = orders["orderQty"]
             for i in range(0, len(sell)):
                 temp = sell[i]
                 temp["timestamp"] = temp["timestamp"].replace('T', " ").replace('Z', "")
                 temp_date = datetime.datetime.strptime(temp["timestamp"], '%Y-%m-%d %H:%M:%S.%f')
                 if self.timestamp == None or temp_date >= self.timestamp:
-                    if orders[0]["price"] >= temp["price"] and temp["size"] > 0:
-                        if (orignal_size - orders[0]["orderQty"]) >= temp["size"]:
-                            orders[0]["orderQty"] = orders[0]["orderQty"] + temp["size"]
-                            self.insert_to_log("Order Partially Filled - " + " " + orders[0]["side"] + " " + str(orders[0]["orderQty"]) + " @ " + str(orders[0]["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
+                    if orders["price"] >= temp["price"] and temp["size"] > 0:
+                        if (orignal_size - orders["cumQty"]) >= temp["size"]:
+                            orders["orderQty"] = orignal_size
+                            orders["cumQty"] = orders["cumQty"] + temp["size"]
+                            orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+                            self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
                             temp["size"] = 0
                             self.timestamp = temp_date
                         else:
-                            self.insert_to_log("Order Filled - " + orders[0]["side"] + " " + str(orignal_size) + " @ " + str(orders[0]["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
-                            temp["size"] = temp["size"] - (orignal_size - orders[0]["orderQty"])
-                            orders[0]["orderQty"] = orignal_size
+                            self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orignal_size) + " @ " + str(orders["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
+                            temp["size"] = temp["size"] - (orignal_size - orders["cumQty"])
+                            orders["orderQty"] = orignal_size
+                            orders["cumQty"] = orignal_size
+                            orders["leavesQty"] = 0
                             self.timestamp = temp_date
                             break
 
         for orders in self.sell_partially_filled:
-            orignal_size = orders[1]
+            orignal_size = orders["orderQty"]
             for i in range(0, len(buy)):
                 temp = buy[i]
                 temp["timestamp"] = temp["timestamp"].replace('T', " ").replace('Z', "")
                 temp_date = datetime.datetime.strptime(temp["timestamp"], '%Y-%m-%d %H:%M:%S.%f')
                 if self.timestamp == None or temp_date >= self.timestamp:
-                    if orders[0]["price"] <= temp["price"] and temp["size"] > 0:
-                        if (orignal_size - orders[0]["orderQty"]) >= temp["size"]:
-                            orders[0]["orderQty"] = orders[0]["orderQty"] + temp["size"]
-                            self.insert_to_log("Order Partially Filled - " + " " + orders[0]["side"] + " " + str(orders[0]["orderQty"]) + " @ " + str(orders[0]["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " +  str(temp["timestamp"]))
+                    if orders["price"] <= temp["price"] and temp["size"] > 0:
+                        if (orignal_size - orders["cumQty"]) >= temp["size"]:
+                            orders["orderQty"] = orignal_size
+                            orders["cumQty"] = orders["cumQty"] + temp["size"]
+                            orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+                            self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " +  str(temp["timestamp"]))
                             temp["size"] = 0
                             self.timestamp = temp_date
                         else:
-                            self.insert_to_log("Order Filled - " + orders[0]["side"] + " " + str(orignal_size) + " @ " + str(orders[0]["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
-                            temp["size"] = temp["size"] - (orignal_size - orders[0]["orderQty"])
-                            orders[0]["orderQty"] = orignal_size
+                            self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orignal_size) + " @ " + str(orders["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
+                            temp["size"] = temp["size"] - (orignal_size - orders["cumQty"])
+                            orders["orderQty"] = orignal_size
+                            orders["cumQty"] = orignal_size
+                            orders["leavesQty"] = 0
                             self.timestamp = temp_date
                             break
 
@@ -167,8 +234,8 @@ class paperless_tracker:
         deleted_ones = 0
 
         for i in range(0, len(auxclone)):
-            if auxclone[i][0]["orderQty"] == auxclone[i][1]:
-                self.filled.append(auxclone[i][0])
+            if auxclone[i]["orderQty"] == auxclone[i]["cumQty"]:
+                self.filled.append(auxclone[i])
                 del self.buy_partially_filled[i - deleted_ones]
                 deleted_ones += 1
 
@@ -176,13 +243,13 @@ class paperless_tracker:
         deleted_ones = 0
 
         for i in range(0, len(auxclone)):
-            if auxclone[i][0]["orderQty"] == auxclone[i][1]:
-                self.filled.append(auxclone[i][0])
+            if auxclone[i]["orderQty"] == auxclone[i]["cumQty"]:
+                self.filled.append(auxclone[i])
                 del self.sell_partially_filled[i - deleted_ones]
                 deleted_ones += 1
 
     def get_funds(self):
-
+        '''
         buy_average = 0
         buy_quantity = 0
 
@@ -215,9 +282,10 @@ class paperless_tracker:
 
         ticker = self.exchange.get_ticker()
         mid = ticker["mid"]
-        in_btc = funds / mid
+        in_btc = funds / mid #Funds is in USD.
+        '''
 
-        return {"marginBalance": (settings.DRY_BTC + in_btc) * constants.XBt_TO_XBT}
+        return {"marginBalance": (settings.DRY_BTC + self.auxFunds) * constants.XBt_TO_XBT}
 
     def get_position(self, symbol):
 
@@ -267,16 +335,19 @@ class paperless_tracker:
         sumAux = 0
 
         for orders in self.filled:
-            sumAux += ((orders["orderQty"] * orders["price"]) / orders["price"])
+            val = ((orders["orderQty"] * orders["price"]) / orders["price"])
+            sumAux += val
             buy_quantity = buy_quantity + (orders["orderQty"] * orders["price"])
 
         for orders in self.buy_partially_filled:
-            sumAux += ((orders[0]["orderQty"] * orders[0]["price"]) / orders[0]["price"])
-            buy_quantity = buy_quantity + (orders[0]["orderQty"] * orders[0]["price"])
+            val = ((orders["cumQty"] * orders["price"]) / orders["price"])
+            sumAux += val
+            buy_quantity = buy_quantity + (orders["cumQty"] * orders["price"])
 
         for orders in self.sell_partially_filled:
-            sumAux += ((orders[0]["orderQty"] * orders[0]["price"]) / orders[0]["price"])
-            buy_quantity = buy_quantity + (orders[0]["orderQty"] * orders[0]["price"])
+            val = ((orders["cumQty"] * orders["price"]) / orders["price"])
+            sumAux += val
+            buy_quantity = buy_quantity + (orders["cumQty"] * orders["price"])
 
         new_qty = buy_quantity + sell_quantity
         if new_qty == 0:
@@ -298,21 +369,38 @@ class paperless_tracker:
             return None
 
         auxsum = 0
+        auxpriceBuy = 0
+        auxpriceSell = 0
+        sumBuy = 0
+        sumSell = 0
         auxlist = copy.deepcopy(self.filled)
         to_delete = 0
         last_insert = 0
+        ticker = self.exchange.get_ticker()
         for i in range(0, len(auxlist)):
 
             Q = auxlist[i]
 
             if Q["side"] == "Buy":
                 auxsum = auxsum + Q["orderQty"]
+                auxpriceBuy = auxpriceBuy + (Q["orderQty"] * Q["price"])
+                sumBuy += Q["orderQty"]
+
             else:
                 auxsum = auxsum - Q["orderQty"]
+                auxpriceSell = auxpriceSell + (Q["orderQty"] * Q["price"])
+                sumSell += Q["orderQty"]
 
             to_delete += 1
 
             if auxsum == 0:
+                BuyFinal = auxpriceBuy / sumBuy
+                SellFinal = auxpriceSell / sumSell
+                self.auxFunds += ((SellFinal - BuyFinal) * sumBuy) / ticker["mid"]
+                auxpriceBuy = 0
+                auxpriceSell = 0
+                sumBuy = 0
+                sumSell = 0
                 for j in range(last_insert, i + 1):
                     self.closed.append(auxlist[j])
                 for j in range(0, to_delete):
@@ -338,10 +426,10 @@ class paperless_tracker:
                 count -= orders["orderQty"]
 
         for orders in self.buy_partially_filled:
-            count += orders[0]["orderQty"]
+            count += orders["cumQty"]
 
         for orders in self.sell_partially_filled:
-            count -= orders[0]["orderQty"]
+            count -= orders["cumQty"]
 
         return count
 
@@ -352,10 +440,10 @@ class paperless_tracker:
             count += orders["orderQty"]
 
         for orders in self.buy_partially_filled:
-            count += orders[0]["orderQty"]
+            count += orders["cumQty"]
 
         for orders in self.sell_partially_filled:
-            count += orders[0]["orderQty"]
+            count += orders["cumQty"]
 
         for orders in self.closed:
             count += orders["orderQty"]
@@ -376,12 +464,45 @@ class paperless_tracker:
             final.append(orders)
 
         for orders in self.buy_partially_filled:
-            final.append(orders[0])
+            final.append(orders)
 
         for orders in self.sell_partially_filled:
-            final.append(orders[0])
+            final.append(orders)
 
         return final
+
+    def cancel_order(self, orderID):
+
+        for i in range(0, len(self.buy_partially_filled)):
+            if self.buy_partially_filled[i]["orderID"] == orderID:
+                if self.buy_partially_filled[i]["cumQty"] > 0:
+                    self.buy_partially_filled[i]["orderQty"] = self.buy_partially_filled[i]["cumQty"]
+                    self.filled.append(self.buy_partially_filled[i])
+                self.insert_to_log(" Cancelling - ID:" + str(self.buy_partially_filled[i]["orderID"]) + " " + self.buy_partially_filled[i]["side"] + " " + str(self.buy_partially_filled[i]["orderQty"]) + " @ " + str(self.buy_partially_filled[i]["price"]))
+                del self.buy_partially_filled[i]
+                break
+
+        for i in range(0, len(self.sell_partially_filled)):
+            if self.sell_partially_filled[i]["orderID"] == orderID:
+                if self.sell_partially_filled[i]["cumQty"] > 0:
+                    self.sell_partially_filled[i]["orderQty"] = self.sell_partially_filled[i]["cumQty"]
+                    self.filled.append(self.sell_partially_filled[i])
+                self.insert_to_log(" Cancelling - ID:" + str(self.sell_partially_filled[i]["orderID"]) + " " + self.sell_partially_filled[i]["side"] + " " + str(self.sell_partially_filled[i]["orderQty"]) + " @ " + str(self.sell_partially_filled[i]["price"]))
+                del self.sell_partially_filled[i]
+                break
+
+    def cancel_all_orders(self):
+
+        cloneBuy = copy.deepcopy(self.buy_partially_filled)
+
+        cloneSell = copy.deepcopy(self.sell_partially_filled)
+
+        for order in cloneBuy:
+            self.cancel_order(order["orderID"])
+
+        for order in cloneSell:
+            self.cancel_order(order["orderID"])
+
 
 
 
