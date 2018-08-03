@@ -460,9 +460,6 @@ class paperless_tracker:
 
         final = []
 
-        for orders in self.filled:
-            final.append(orders)
-
         for orders in self.buy_partially_filled:
             final.append(orders)
 
