@@ -9,12 +9,17 @@ class CustomOrderManager(OrderManager):
     def place_orders(self) -> None:
         # implement your custom strategy here
 
+        # implement your custom strategy here
+
         buy_orders = []
         sell_orders = []
-
+        ticker = self.exchange.get_ticker()
+        mid = ticker["mid"]
         # populate buy and sell orders, e.g.
-        buy_orders.append({'price': 999.0, 'orderQty': 5, 'side': "Buy"})
-        sell_orders.append({'price': 1001.0, 'orderQty': 5, 'side': "Sell"})
+        if self.onlyone:
+            buy_orders.append({'price': 7000, 'orderQty': 7000, 'side': "Buy"})
+            sell_orders.append({'price': 8000, 'orderQty': 8000, 'side': "Sell"})
+            self.onlyone = False
 
         self.converge_orders(buy_orders, sell_orders)
 

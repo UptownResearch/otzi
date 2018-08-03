@@ -38,6 +38,13 @@ class ExchangeInterface:
                                     timeout=settings.TIMEOUT)
 
     def cancel_order(self, order):
+
+        if settings.paperless:
+            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+            return pp_traker.cancel_order(order['orderID'])
+
+
         tickLog = self.get_instrument()['tickLog']
         logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
         while True:
@@ -51,8 +58,13 @@ class ExchangeInterface:
                 break
 
     def cancel_all_orders(self):
-        if self.dry_run:
+        if self.dry_run and settings.paperless == False:
             return
+
+        if settings.paperless:
+            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            logger.info("Resetting current position. Canceling all existing orders.")
+            return pp_traker.cancel_all_orders()
 
         logger.info("Resetting current position. Canceling all existing orders.")
         tickLog = self.get_instrument()['tickLog']
