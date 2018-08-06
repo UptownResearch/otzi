@@ -38,7 +38,7 @@ ORDER_STEP_SIZE = 100
 INTERVAL = 0.005
 
 # Minimum spread to maintain, in percent, between asks & bids
-MIN_SPREAD = 0.001
+MIN_SPREAD = 0.0001
 
 # If True, market-maker will place orders just inside the existing spread and work the interval % outwards,
 # rather than starting in the middle and killing potentially profitable spreads.
@@ -96,6 +96,13 @@ DRY_BTC = 50
 
 # Available levels: logging.(DEBUG|INFO|WARN|ERROR)
 LOG_LEVEL = logging.INFO
+
+#Log everything?
+ROOT_LOG = True
+
+#Where should the Root log go? 
+import os
+ROOT_LOG_LOCATION = os.path.expanduser("~") + "/log/smm/"
 
 # To uniquely identify orders placed by this bot, the bot sends a ClOrdID (Client order ID) that is attached
 # to each order so its source can be identified. This keeps the market maker from cancelling orders that are
