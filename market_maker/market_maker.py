@@ -169,7 +169,6 @@ class ExchangeInterface:
 
         if settings.paperless:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            print(pp_traker.get_orders())
             return pp_traker.get_orders()
 
         return self.bitmex.open_orders()

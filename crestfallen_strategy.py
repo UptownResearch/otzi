@@ -8,6 +8,22 @@ from market_maker.utils import log, constants, errors, math
 # Helpers
 #
 
+import logging
+
+# create file handler which logs even debug messages
+if settings.ROOT_LOG:
+    import datetime
+    file_location = settings.ROOT_LOG_LOCATION + f"{datetime.datetime.now():%Y-%m-%d}" + ".log"
+    fh = logging.FileHandler(file_location, mode='a')
+    formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    rootlogger = logging.getLogger('root')
+    rootlogger.addHandler(fh)
+    rootlogger.setLevel(logging.DEBUG)
+    level = logging.getLogger().getEffectiveLevel()
+    rootlogger.info('Root at level %s - Logging to file: %s' % (level, file_location))
+
 
 
 class CustomOrderManager(OrderManager):
