@@ -397,13 +397,13 @@ class paperless_tracker:
 
             Q = auxlist[i]
 
-            #if Q["side"] == "Buy":
-                #auxsum = auxsum + Q["orderQty"]
+            if Q["side"] == "Buy":
+                auxsum = auxsum + Q["orderQty"]
                 #auxpriceBuy = auxpriceBuy + (Q["orderQty"] * Q["price"])
                 #sumBuy += Q["orderQty"]
 
-            #else:
-                #auxsum = auxsum - Q["orderQty"]
+            else:
+                auxsum = auxsum - Q["orderQty"]
                 #auxpriceSell = auxpriceSell + (Q["orderQty"] * Q["price"])
                 #sumSell += Q["orderQty"]
 
