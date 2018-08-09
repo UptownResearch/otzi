@@ -33,6 +33,7 @@ class paperless_tracker:
             self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
             self.timestamp = None
             self.auxFunds = 0
+            self.position = self.position = {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': "XBTUSD"}
             paperless_tracker.__instance = self
 
     def track_orders_created(self, order):
@@ -46,12 +47,13 @@ class paperless_tracker:
                 buy_orders.append(copy.deepcopy(orders))
             else:
                 sell_orders.append(copy.deepcopy(orders))
-
+        '''
         for order in buy_orders:
             order["orderQty"] = order["orderQty"] / order["price"]
 
         for order in sell_orders:
             order["orderQty"] = order["orderQty"] / order["price"]
+        '''
 
         if len(buy_orders) > 0:
             self.buy_orders_created.extend(buy_orders)
@@ -73,6 +75,7 @@ class paperless_tracker:
             self.random_base += 1
             orders["orderID"] = self.random_base
             orders["cumQty"] = orders["orderQty"]
+            self.calculate_position(orders, orders["cumQty"])
             orders["leavesQty"] = 0
             self.filled.append(orders)
 
@@ -80,8 +83,10 @@ class paperless_tracker:
             self.random_base += 1
             orders["orderID"] = self.random_base
             orders["cumQty"] = orders["orderQty"]
+            self.calculate_position(orders, orders["cumQty"])
             orders["leavesQty"] = 0
             self.filled.append(orders)
+
 
         orde = {}
         orde["orderQty"] = 3500 / 7000
@@ -109,7 +114,6 @@ class paperless_tracker:
         orde["price"] = 5000
         orde["side"] = "Sell"
         self.filled.append(orde)
-
         return 0
         '''
 
@@ -123,11 +127,13 @@ class paperless_tracker:
                 if orders["price"] >= temp["price"] and temp["size"] > 0:
                     if (orders["orderQty"] - orders["cumQty"]) >= temp["size"]:
                         orders["cumQty"] = orders["cumQty"] + temp["size"]
+                        self.calculate_position(orders, temp["size"])
                         orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                         self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
                         temp["size"] = 0
                     else:
                         temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
+                        self.calculate_position(orders, (orders["orderQty"] - orders["cumQty"]))
                         orders["cumQty"] = orders["orderQty"]
                         orders["leavesQty"] = 0
                         self.filled.append(orders)
@@ -135,7 +141,7 @@ class paperless_tracker:
                         break
             else:
                 self.buy_partially_filled.append(orders)
-                self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
+                self.insert_to_log("Order Created - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
 
         for orders in sell_orders:
             self.random_base += 1
@@ -148,11 +154,13 @@ class paperless_tracker:
                     if (orders["orderQty"] - orders["cumQty"]) >= temp["size"]:
                         orders["orderQty"] = orders["orderQty"]
                         orders["cumQty"] = orders["cumQty"] + temp["size"]
+                        self.calculate_position(orders, temp["size"])
                         orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                         self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
                         temp["size"] = 0
                     else:
                         temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
+                        self.calculate_position(orders, (orders["orderQty"] - orders["cumQty"]))
                         orders["cumQty"] = orders["orderQty"]
                         orders["leavesQty"] = 0
                         self.filled.append(orders)
@@ -160,7 +168,7 @@ class paperless_tracker:
                         break
             else:
                 self.sell_partially_filled.append(orders)
-                self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
+                self.insert_to_log("Order Created - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
 
     def track_orders(self):
 
@@ -189,6 +197,7 @@ class paperless_tracker:
                         if (orignal_size - orders["cumQty"]) >= temp["size"]:
                             orders["orderQty"] = orignal_size
                             orders["cumQty"] = orders["cumQty"] + temp["size"]
+                            self.calculate_position(orders, temp["size"])
                             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                             self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
                             temp["size"] = 0
@@ -196,6 +205,7 @@ class paperless_tracker:
                         else:
                             self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orignal_size) + " @ " + str(orders["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
                             temp["size"] = temp["size"] - (orignal_size - orders["cumQty"])
+                            self.calculate_position(orders, (orders["orderQty"] - orders["cumQty"]))
                             orders["orderQty"] = orignal_size
                             orders["cumQty"] = orignal_size
                             orders["leavesQty"] = 0
@@ -213,6 +223,7 @@ class paperless_tracker:
                         if (orignal_size - orders["cumQty"]) >= temp["size"]:
                             orders["orderQty"] = orignal_size
                             orders["cumQty"] = orders["cumQty"] + temp["size"]
+                            self.calculate_position(orders, temp["size"])
                             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                             self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " +  str(temp["timestamp"]))
                             temp["size"] = 0
@@ -220,6 +231,7 @@ class paperless_tracker:
                         else:
                             self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orignal_size) + " @ " + str(orders["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
                             temp["size"] = temp["size"] - (orignal_size - orders["cumQty"])
+                            self.calculate_position(orders, (orders["orderQty"] - orders["cumQty"]))
                             orders["orderQty"] = orignal_size
                             orders["cumQty"] = orignal_size
                             orders["leavesQty"] = 0
@@ -330,6 +342,7 @@ class paperless_tracker:
             return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
         '''
 
+        '''
         buy_quantity = 0
         sell_quantity = 0
         sumAux = 0
@@ -362,6 +375,9 @@ class paperless_tracker:
 
         elif new_qty < 0:
             return {'avgCostPrice': X2, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
+        '''
+        self.position["symbol"] = symbol
+        return self.position
 
     def close_positions(self):
 
@@ -369,38 +385,38 @@ class paperless_tracker:
             return None
 
         auxsum = 0
-        auxpriceBuy = 0
-        auxpriceSell = 0
-        sumBuy = 0
-        sumSell = 0
+        #auxpriceBuy = 0
+        #auxpriceSell = 0
+        #sumBuy = 0
+        #sumSell = 0
         auxlist = copy.deepcopy(self.filled)
         to_delete = 0
         last_insert = 0
-        ticker = self.exchange.get_ticker()
+        #ticker = self.exchange.get_ticker()
         for i in range(0, len(auxlist)):
 
             Q = auxlist[i]
 
             if Q["side"] == "Buy":
                 auxsum = auxsum + Q["orderQty"]
-                auxpriceBuy = auxpriceBuy + (Q["orderQty"] * Q["price"])
-                sumBuy += Q["orderQty"]
+                #auxpriceBuy = auxpriceBuy + (Q["orderQty"] * Q["price"])
+                #sumBuy += Q["orderQty"]
 
             else:
                 auxsum = auxsum - Q["orderQty"]
-                auxpriceSell = auxpriceSell + (Q["orderQty"] * Q["price"])
-                sumSell += Q["orderQty"]
+                #auxpriceSell = auxpriceSell + (Q["orderQty"] * Q["price"])
+                #sumSell += Q["orderQty"]
 
             to_delete += 1
 
             if auxsum == 0:
-                BuyFinal = auxpriceBuy / sumBuy
-                SellFinal = auxpriceSell / sumSell
-                self.auxFunds += ((SellFinal - BuyFinal) * sumBuy) / ticker["mid"]
-                auxpriceBuy = 0
-                auxpriceSell = 0
-                sumBuy = 0
-                sumSell = 0
+                #BuyFinal = auxpriceBuy / sumBuy
+                #SellFinal = auxpriceSell / sumSell
+                #self.auxFunds += ((SellFinal - BuyFinal) * sumBuy) / ticker["mid"]
+                #auxpriceBuy = 0
+                #auxpriceSell = 0
+                #sumBuy = 0
+                #sumSell = 0
                 for j in range(last_insert, i + 1):
                     self.closed.append(auxlist[j])
                 for j in range(0, to_delete):
@@ -437,16 +453,16 @@ class paperless_tracker:
         count = 0
 
         for orders in self.filled:
-            count += orders["orderQty"]
+            count += orders["orderQty"]/orders["price"]
 
         for orders in self.buy_partially_filled:
-            count += orders["cumQty"]
+            count += orders["cumQty"]/orders["price"]
 
         for orders in self.sell_partially_filled:
-            count += orders["cumQty"]
+            count += orders["cumQty"]/orders["price"]
 
         for orders in self.closed:
-            count += orders["orderQty"]
+            count += orders["orderQty"]/orders["price"]
 
         return count
 
@@ -499,6 +515,54 @@ class paperless_tracker:
 
         for order in cloneSell:
             self.cancel_order(order["orderID"])
+
+    def calculate_position(self, order, Qty):
+
+        clone = Qty
+
+        if order["side"] == "Sell":
+            clone *= -1
+
+        if self.position["currentQty"] == 0:
+            self.position = {'avgCostPrice': order["price"], 'avgEntryPrice': order["price"], 'currentQty': clone, 'symbol': "XBTUSD"}
+            return
+
+        if (self.position["currentQty"] < 0 and clone < 0) or (self.position["currentQty"] > 0 and clone > 0):
+
+            newQTY = self.position["currentQty"] + clone
+
+            newPrice = (self.position["avgEntryPrice"] * self.position["currentQty"]) + (clone * order["price"])
+
+            self.position["avgCostPrice"] = newPrice / newQTY
+            self.position["avgEntryPrice"] = newPrice / newQTY
+            self.position["currentQty"] = newQTY
+
+        else:
+
+            if self.position["currentQty"] > Qty:
+
+                    if self.position["currentQty"] > 0:
+                        profit = ((1/self.position["avgEntryPrice"]) - (1/order["price"])) * Qty
+                    else:
+                        profit = ((1/order["price"]) - (1/self.position["avgEntryPrice"])) * Qty
+
+                    self.position["currentQty"] = self.position["currentQty"] + clone
+
+                    self.auxFunds += profit
+
+            else:
+
+                if self.position["currentQty"] > 0:
+                    profit = ((1/self.position["avgEntryPrice"]) - (1/order["price"])) * abs(self.position["currentQty"])
+                else:
+                    profit = ((1/order["price"]) - (1/self.position["avgEntryPrice"])) * abs(self.position["currentQty"])
+
+                self.position["avgEntryPrice"] = order["price"]
+                self.position["avgCostPrice"] = order["price"]
+                self.position["currentQty"] = self.position["currentQty"] + clone
+
+                self.auxFunds += profit
+
 
 
 
