@@ -453,16 +453,16 @@ class paperless_tracker:
         count = 0
 
         for orders in self.filled:
-            count += orders["orderQty"]/orders["price"]
+            count += orders["orderQty"]
 
         for orders in self.buy_partially_filled:
-            count += orders["cumQty"]/orders["price"]
+            count += orders["cumQty"]
 
         for orders in self.sell_partially_filled:
-            count += orders["cumQty"]/orders["price"]
+            count += orders["cumQty"]
 
         for orders in self.closed:
-            count += orders["orderQty"]/orders["price"]
+            count += orders["orderQty"]
 
         return count
 

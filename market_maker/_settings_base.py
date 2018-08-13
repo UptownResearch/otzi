@@ -147,3 +147,5 @@ MAX_OR_MIN_POSITION = 10000
 QUOTE_RANGE = 10
 
 
+compare = True
+#compare = False

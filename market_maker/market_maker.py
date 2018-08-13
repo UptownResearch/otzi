@@ -12,6 +12,7 @@ from market_maker import bitmex
 from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
 from market_maker import paperless_tracker
+import logging
 
 
 # Used for reloading the bot - saves modified times of key files
@@ -24,6 +25,13 @@ watched_files_mtimes = [(f, getmtime(f)) for f in settings.WATCHED_FILES]
 #
 logger = log.setup_custom_logger('root')
 
+compare_logger = logging.getLogger("paperless")
+compare_logger.setLevel(logging.INFO)
+fh = logging.FileHandler("paperless_logger.log")
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+compare_logger.addHandler(fh)
 
 class ExchangeInterface:
     def __init__(self, dry_run=False):
@@ -38,48 +46,85 @@ class ExchangeInterface:
                                     timeout=settings.TIMEOUT)
 
     def cancel_order(self, order):
+        if settings.compare is not True:
+            tickLog = self.get_instrument()['tickLog']
+            if settings.paperless:
+                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+                return pp_traker.cancel_order(order['orderID'])
 
-        if settings.paperless:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
             logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-            return pp_traker.cancel_order(order['orderID'])
+            while True:
+                try:
+                    self.bitmex.cancel(order['orderID'])
+                    sleep(settings.API_REST_INTERVAL)
+                except ValueError as e:
+                    logger.info(e)
+                    sleep(settings.API_ERROR_INTERVAL)
+                else:
+                    break
+        else:
+            tickLog = self.get_instrument()['tickLog']
 
+            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_traker.cancel_order(order['orderID'])
+            compare_logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
 
-        tickLog = self.get_instrument()['tickLog']
-        logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-        while True:
-            try:
-                self.bitmex.cancel(order['orderID'])
-                sleep(settings.API_REST_INTERVAL)
-            except ValueError as e:
-                logger.info(e)
-                sleep(settings.API_ERROR_INTERVAL)
-            else:
-                break
+            logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+            while True:
+                try:
+                    self.bitmex.cancel(order['orderID'])
+                    sleep(settings.API_REST_INTERVAL)
+                except ValueError as e:
+                    logger.info(e)
+                    sleep(settings.API_ERROR_INTERVAL)
+                else:
+                    break
 
     def cancel_all_orders(self):
-        if self.dry_run and settings.paperless == False:
-            return
+        if settings.compare is not True:
+            if self.dry_run and settings.paperless == False:
+                return
 
-        if settings.paperless:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            if settings.paperless:
+                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                logger.info("Resetting current position. Canceling all existing orders.")
+                return pp_traker.cancel_all_orders()
+
             logger.info("Resetting current position. Canceling all existing orders.")
-            return pp_traker.cancel_all_orders()
+            tickLog = self.get_instrument()['tickLog']
 
-        logger.info("Resetting current position. Canceling all existing orders.")
-        tickLog = self.get_instrument()['tickLog']
+            # In certain cases, a WS update might not make it through before we call this.
+            # For that reason, we grab via HTTP to ensure we grab them all.
+            orders = self.bitmex.http_open_orders()
 
-        # In certain cases, a WS update might not make it through before we call this.
-        # For that reason, we grab via HTTP to ensure we grab them all.
-        orders = self.bitmex.http_open_orders()
+            for order in orders:
+                logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
 
-        for order in orders:
-            logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+            if len(orders):
+                self.bitmex.cancel([order['orderID'] for order in orders])
 
-        if len(orders):
-            self.bitmex.cancel([order['orderID'] for order in orders])
+            sleep(settings.API_REST_INTERVAL)
+        else:
 
-        sleep(settings.API_REST_INTERVAL)
+            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            compare_logger.info("Resetting current position. Canceling all existing orders.")
+            pp_traker.cancel_all_orders()
+
+            logger.info("Resetting current position. Canceling all existing orders.")
+            tickLog = self.get_instrument()['tickLog']
+
+            # In certain cases, a WS update might not make it through before we call this.
+            # For that reason, we grab via HTTP to ensure we grab them all.
+            orders = self.bitmex.http_open_orders()
+
+            for order in orders:
+                logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+
+            if len(orders):
+                self.bitmex.cancel([order['orderID'] for order in orders])
+
+            sleep(settings.API_REST_INTERVAL)
 
     def get_portfolio(self):
         contracts = settings.CONTRACTS
@@ -138,14 +183,22 @@ class ExchangeInterface:
         return delta
 
     def get_delta(self, symbol=None):
-        if symbol is None:
-            symbol = self.symbol
+        if settings.compare is not True:
+            if symbol is None:
+                symbol = self.symbol
 
-        if settings.paperless:
+            if settings.paperless:
+                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_traker.current_contract()
+
+            return self.get_position(symbol)['currentQty']
+        else:
+            if symbol is None:
+                symbol = self.symbol
+
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            return pp_traker.current_contract()
 
-        return self.get_position(symbol)['currentQty']
+            return self.bitmex.position(symbol)['currentQty'], pp_traker.current_contract()
 
     def get_instrument(self, symbol=None):
         if symbol is None:
@@ -153,25 +206,35 @@ class ExchangeInterface:
         return self.bitmex.instrument(symbol)
 
     def get_margin(self):
+        if settings.compare is not True:
 
-        if self.dry_run and settings.paperless == False:
-            return {'marginBalance': float(settings.DRY_BTC), 'availableFunds': float(settings.DRY_BTC)}
+            if self.dry_run and settings.paperless == False:
+                return {'marginBalance': float(settings.DRY_BTC), 'availableFunds': float(settings.DRY_BTC)}
 
-        if settings.paperless:
+            if settings.paperless:
+                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_traker.get_funds()
+
+            return self.bitmex.funds()
+        else:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            return pp_traker.get_funds()
 
-        return self.bitmex.funds()
+            return self.bitmex.funds(), pp_traker.get_funds()
 
     def get_orders(self):
-        if self.dry_run and settings.paperless == False:
-            return []
+        if settings.compare is not True:
+            if self.dry_run and settings.paperless == False:
+                return []
 
-        if settings.paperless:
+            if settings.paperless:
+                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_traker.get_orders()
+
+            return self.bitmex.open_orders()
+        else:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            return pp_traker.get_orders()
 
-        return self.bitmex.open_orders()
+            return self.bitmex.open_orders()
 
     def get_highest_buy(self):
         buys = [o for o in self.get_orders() if o['side'] == 'Buy']
@@ -188,14 +251,22 @@ class ExchangeInterface:
         return lowest_sell if lowest_sell else {'price': 2**32}  # ought to be enough for anyone
 
     def get_position(self, symbol=None):
-        if symbol is None:
-            symbol = self.symbol
+        if settings.compare is not True:
+            if symbol is None:
+                symbol = self.symbol
 
-        if settings.paperless:
+            if settings.paperless:
+                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_traker.get_position(symbol)
+
+            return self.bitmex.position(symbol)
+        else:
+            if symbol is None:
+                symbol = self.symbol
+
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            return pp_traker.get_position(symbol)
 
-        return self.bitmex.position(symbol)
+            return self.bitmex.position(symbol), pp_traker.get_position(symbol)
 
     def get_ticker(self, symbol=None):
         if symbol is None:
@@ -219,33 +290,48 @@ class ExchangeInterface:
             raise errors.MarketEmptyError("Orderbook is empty, cannot quote")
 
     def amend_bulk_orders(self, orders):
-        if self.dry_run and settings.paperless == False:
-            return orders
+        if settings.compare is not True:
 
-        if settings.paperless:
-            return orders
+            if self.dry_run and settings.paperless == False:
+                return orders
 
-        return self.bitmex.amend_bulk_orders(orders)
+            if settings.paperless:
+                return orders
+
+            return self.bitmex.amend_bulk_orders(orders)
+        else:
+
+            return self.bitmex.amend_bulk_orders(orders), orders
 
     def create_bulk_orders(self, orders):
-        if self.dry_run and settings.paperless == False:
-            return orders
+        if settings.compare is not True:
+            if self.dry_run and settings.paperless == False:
+                return orders
 
-        if settings.paperless:
+            if settings.paperless:
+                ppl_tracker = paperless_tracker.paperless_tracker.getInstance()
+                ppl_tracker.track_orders_created(orders)
+                return orders
+
+            return self.bitmex.create_bulk_orders(orders)
+        else:
             ppl_tracker = paperless_tracker.paperless_tracker.getInstance()
             ppl_tracker.track_orders_created(orders)
-            return orders
 
-        return self.bitmex.create_bulk_orders(orders)
+            return self.bitmex.create_bulk_orders(orders)
 
     def cancel_bulk_orders(self, orders):
-        if self.dry_run and settings.paperless == False:
-            return orders
+        if settings.compare is not True:
+            if self.dry_run and settings.paperless == False:
+                return orders
 
-        if settings.paperless:
-            return orders
+            if settings.paperless:
+                return orders
 
-        return self.bitmex.cancel([order['orderID'] for order in orders])
+            return self.bitmex.cancel([order['orderID'] for order in orders])
+        else:
+
+            return self.bitmex.cancel([order['orderID'] for order in orders])
 
     def recent_trades(self):
         return self.bitmex.recent_trades()
@@ -255,17 +341,17 @@ class ExchangeInterface:
 
     def contracts_this_run(self):
 
-        if self.dry_run and settings.paperless == False:
+        if self.dry_run and settings.paperless == False and settings.compare is not True:
             self.get_delta()
 
-        if settings.paperless:
+        if settings.paperless or settings.compare:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
             return pp_traker.contract_traded_this_run()
 
         return 0
 
     def loop(self):
-        if settings.paperless:
+        if settings.paperless or settings.compare:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
             pp_traker.loop_functions()
 
@@ -284,10 +370,14 @@ class OrderManager:
             logger.info("Initializing dry run. Orders printed below represent what would be posted to BitMEX.")
         else:
             logger.info("Order Manager initializing, connecting to BitMEX. Live run: executing real trades.")
+            compare_logger.info("Order Manager initializing, connecting to BitMEX. Live run: executing real trades.")
 
         self.start_time = datetime.now()
         self.instrument = self.exchange.get_instrument()
-        self.starting_qty = self.exchange.get_delta()
+        if settings.compare is True:
+            self.starting_qty = self.exchange.get_delta()[0]
+        else:
+            self.starting_qty = self.exchange.get_delta()
         self.running_qty = self.starting_qty
         self.reset()
 
@@ -300,23 +390,54 @@ class OrderManager:
         self.place_orders()
 
     def print_status(self):
-        """Print the current MM status."""
+        if settings.compare is not True:
+            """Print the current MM status."""
 
-        margin = self.exchange.get_margin()
-        position = self.exchange.get_position()
-        self.running_qty = self.exchange.get_delta()
-        tickLog = self.exchange.get_instrument()['tickLog']
-        self.start_XBt = margin["marginBalance"]
+            margin = self.exchange.get_margin()
+            position = self.exchange.get_position()
+            self.running_qty = self.exchange.get_delta()
+            tickLog = self.exchange.get_instrument()['tickLog']
+            self.start_XBt = margin["marginBalance"]
 
-        logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
-        logger.info("Current Contract Position: %d" % self.running_qty)
-        if settings.CHECK_POSITION_LIMITS:
-            logger.info("Position limits: %d/%d" % (settings.MIN_POSITION, settings.MAX_POSITION))
-        if position['currentQty'] != 0:
-            logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
-            logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
-        logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - self.starting_qty))
-        logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
+            logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
+            logger.info("Current Contract Position: %d" % self.running_qty)
+            if settings.CHECK_POSITION_LIMITS:
+                logger.info("Position limits: %d/%d" % (settings.MIN_POSITION, settings.MAX_POSITION))
+            if position['currentQty'] != 0:
+                logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
+                logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
+            logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - self.starting_qty))
+            logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
+        else:
+            """Print the current MM status."""
+
+            margin, paper_margin = self.exchange.get_margin()
+            position, paper_position = self.exchange.get_position()
+            self.running_qty, paper_delta = self.exchange.get_delta()
+            tickLog = self.exchange.get_instrument()['tickLog']
+            self.start_XBt = margin["marginBalance"]
+            paper_start_XBt = paper_margin["marginBalance"]
+
+            logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
+            logger.info("Current Contract Position: %d" % self.running_qty)
+            if settings.CHECK_POSITION_LIMITS:
+                logger.info("Position limits: %d/%d" % (settings.MIN_POSITION, settings.MAX_POSITION))
+            if position['currentQty'] != 0:
+                logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
+                logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
+            logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - self.starting_qty))
+            logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
+
+
+            compare_logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(paper_start_XBt))
+            compare_logger.info("Current Contract Position: %d" % paper_delta)
+            if settings.CHECK_POSITION_LIMITS:
+                compare_logger.info("Position limits: %d/%d" % (settings.MIN_POSITION, settings.MAX_POSITION))
+            if paper_position['currentQty'] != 0:
+                compare_logger.info("Avg Cost Price: %.*f" % (tickLog, float(paper_position['avgCostPrice'])))
+                compare_logger.info("Avg Entry Price: %.*f" % (tickLog, float(paper_position['avgEntryPrice'])))
+            compare_logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - 0))
+            compare_logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
 
     def get_ticker(self):
         ticker = self.exchange.get_ticker()
@@ -348,7 +469,14 @@ class OrderManager:
             "%s Ticker: Buy: %.*f, Sell: %.*f" %
             (self.instrument['symbol'], tickLog, ticker["buy"], tickLog, ticker["sell"])
         )
+        compare_logger.info(
+            "%s Ticker: Buy: %.*f, Sell: %.*f" %
+            (self.instrument['symbol'], tickLog, ticker["buy"], tickLog, ticker["sell"])
+        )
         logger.info('Start Positions: Buy: %.*f, Sell: %.*f, Mid: %.*f' %
+                    (tickLog, self.start_position_buy, tickLog, self.start_position_sell,
+                     tickLog, self.start_position_mid))
+        compare_logger.info('Start Positions: Buy: %.*f, Sell: %.*f, Mid: %.*f' %
                     (tickLog, self.start_position_buy, tickLog, self.start_position_sell,
                      tickLog, self.start_position_mid))
         return ticker
@@ -479,8 +607,10 @@ class OrderManager:
 
         if len(to_create) > 0:
             logger.info("Creating %d orders:" % (len(to_create)))
+            compare_logger.info("Creating %d orders:" % (len(to_create)))
             for order in reversed(to_create):
                 logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+                compare_logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
             self.exchange.create_bulk_orders(to_create)
 
         # Could happen if we exceed a delta limit
@@ -488,6 +618,7 @@ class OrderManager:
             logger.info("Canceling %d orders:" % (len(to_cancel)))
             for order in reversed(to_cancel):
                 logger.info("%4s %d @ %.*f" % (order['side'], order['leavesQty'], tickLog, order['price']))
+                compare_logger.info("%4s %d @ %.*f" % (order['side'], order['leavesQty'], tickLog, order['price']))
             self.exchange.cancel_bulk_orders(to_cancel)
 
     ###
@@ -614,7 +745,7 @@ def margin(instrument, quantity, price):
 def run():
     logger.info('BitMEX Market Maker Version: %s\n' % constants.VERSION)
 
-    om = OrderManager()
+    om = CustomOrderManager()
     # Try/except just keeps ctrl-c from printing an ugly stacktrace
     try:
         om.run_loop()
@@ -622,9 +753,25 @@ def run():
         sys.exit()
 
 
+class CustomOrderManager(OrderManager):
+    """A sample order manager for implementing your own custom strategy"""
+    onlyone = True
+    def place_orders(self) -> None:
+        # implement your custom strategy here
 
+        # implement your custom strategy here
 
+        buy_orders = []
+        sell_orders = []
+        ticker = self.exchange.get_ticker()
+        mid = ticker["mid"]
+        # populate buy and sell orders, e.g.
+        if self.onlyone:
+            buy_orders.append({'price': mid + 1, 'orderQty': 1000, 'side': "Buy"})
+            sell_orders.append({'price': mid - 1, 'orderQty': 500, 'side': "Sell"})
+            self.onlyone = False
 
+        self.converge_orders(buy_orders, sell_orders)
 
 
 
