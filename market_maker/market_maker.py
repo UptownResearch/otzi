@@ -7,6 +7,7 @@ import random
 import requests
 import atexit
 import signal
+import json
 
 from market_maker import bitmex
 from market_maker.settings import settings
@@ -32,6 +33,8 @@ formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 compare_logger.addHandler(fh)
+
+
 
 class ExchangeInterface:
     def __init__(self, dry_run=False):
@@ -103,6 +106,8 @@ class ExchangeInterface:
 
             if len(orders):
                 self.bitmex.cancel([order['orderID'] for order in orders])
+
+
 
             sleep(settings.API_REST_INTERVAL)
         else:
@@ -297,10 +302,8 @@ class ExchangeInterface:
 
             if settings.paperless:
                 return orders
-
             return self.bitmex.amend_bulk_orders(orders)
         else:
-
             return self.bitmex.amend_bulk_orders(orders), orders
 
     def create_bulk_orders(self, orders):
@@ -311,7 +314,7 @@ class ExchangeInterface:
             if settings.paperless:
                 ppl_tracker = paperless_tracker.paperless_tracker.getInstance()
                 ppl_tracker.track_orders_created(orders)
-                return orders
+                return orders 
 
             return self.bitmex.create_bulk_orders(orders)
         else:

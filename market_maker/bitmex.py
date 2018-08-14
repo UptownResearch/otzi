@@ -10,7 +10,18 @@ import logging
 from market_maker.auth import APIKeyAuthWithExpires
 from market_maker.utils import constants, errors
 from market_maker.ws.ws_thread import BitMEXWebsocket
+from market_maker.settings import settings
 
+#log orders to file
+order_logger = logging.getLogger("orders")
+order_logger.setLevel(logging.INFO)
+order_file = settings.ROOT_LOG_LOCATION + "orders/" + \
+            ('p' if settings.paperless else "") + \
+            f"{datetime.datetime.now():%Y-%m-%d}" + ".log"
+ofh = logging.FileHandler(order_file)
+simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
+ofh.setFormatter(simple_formatter)
+order_logger.addHandler(ofh)
 
 
 # https://www.bitmex.com/api/explorer/
@@ -116,6 +127,11 @@ class BitMEX(object):
         return self.ws.position(symbol)
 
     @authentication_required
+    def execution(self, symbol):
+        """Get your open position."""
+        return self.ws.execution()
+
+    @authentication_required
     def isolate_margin(self, symbol, leverage, rethrow_errors=False):
         """Set the leverage on an isolated margin position"""
         path = "position/leverage"
@@ -160,13 +176,29 @@ class BitMEX(object):
             'price': price,
             'clOrdID': clOrdID
         }
+        order_out = {
+            'status': 'Created',
+            'paperless' : settings.paperless,
+            'type' : 'Live',
+            'data' : postdict
+        }
+        order_logger.info(json.dumps(order_out))
+
         return self._curl_bitmex(path=endpoint, postdict=postdict, verb="POST")
 
     @authentication_required
     def amend_bulk_orders(self, orders):
         """Amend multiple orders."""
         # Note rethrow; if this fails, we want to catch it and re-tick
-        return self._curl_bitmex(path='order/bulk', postdict={'orders': orders}, verb='PUT', rethrow_errors=True)
+        postdict={'orders': orders}
+        order_out = {
+            'status': 'Amended',
+            'paperless' : settings.paperless,
+            'type' : 'Live',
+            'data' : postdict
+        }
+        order_logger.info(json.dumps(order_out))
+        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='PUT', rethrow_errors=True)
 
     @authentication_required
     def create_bulk_orders(self, orders):
@@ -176,7 +208,15 @@ class BitMEX(object):
             order['symbol'] = self.symbol
             if self.postOnly:
                 order['execInst'] = 'ParticipateDoNotInitiate'
-        return self._curl_bitmex(path='order/bulk', postdict={'orders': orders}, verb='POST')
+        postdict={'orders': orders}
+        order_out = {
+            'status': 'Created',
+            'paperless' : settings.paperless,
+            'type' : 'Live',
+            'data' : postdict
+        }
+        order_logger.info(json.dumps(order_out))        
+        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='POST')
 
     @authentication_required
     def open_orders(self):
@@ -205,6 +245,13 @@ class BitMEX(object):
         postdict = {
             'orderID': orderID,
         }
+        order_out = {
+            'status': 'Cancelled',
+            'paperless' : settings.paperless,
+            'type' : 'Live',
+            'data' : postdict
+        }
+        order_logger.info(json.dumps(order_out))  
         return self._curl_bitmex(path=path, postdict=postdict, verb="DELETE")
 
     @authentication_required
@@ -217,6 +264,21 @@ class BitMEX(object):
             'address': address
         }
         return self._curl_bitmex(path=path, postdict=postdict, verb="POST", max_retries=0)
+
+    def _check_new_fills():
+        newfills = new_fills()
+        if newfills == []:
+            return
+        else:
+            for fill in newfills:
+                fill_out = {
+                'status': 'Filled',
+                'paperless' : settings.paperless,
+                'type' : 'Live',
+                'data' : fill
+                }
+                order_logger.info(json.dumps(fill_out))  
+            return 
 
     def _curl_bitmex(self, path, query=None, postdict=None, timeout=None, verb=None, rethrow_errors=False,
                      max_retries=None):
