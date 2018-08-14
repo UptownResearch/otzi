@@ -63,7 +63,10 @@ class CustomOrderManager(OrderManager):
 
 
         # calculate offset for inventory
-        position = self.exchange.get_delta()
+        if settings.compare:
+            position, trackerpos = self.exchange.get_delta()
+        else:
+            position = self.exchange.get_delta()
         if abs(position) >= settings.MAX_OR_MIN_POSITION:          
             logger.info("Position exceeds limits: %s" % (position,))
 
