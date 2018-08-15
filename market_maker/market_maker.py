@@ -359,7 +359,7 @@ class ExchangeInterface:
         return 0
 
     def loop(self):
-
+        self.bitmex.wait_update()
         if settings.paperless or settings.compare:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
             pp_traker.loop_functions()

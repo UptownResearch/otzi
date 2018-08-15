@@ -7,6 +7,8 @@ from time import sleep
 import json
 import decimal
 import logging
+import datetime
+
 from market_maker.settings import settings
 from market_maker.auth.APIKeyAuth import generate_nonce, generate_signature
 from market_maker.utils.log import setup_custom_logger
@@ -37,6 +39,8 @@ class BitMEXWebsocket():
         self.logger = logging.getLogger('root')
         self.__reset()
         self.ordersreturned = None 
+        self.last_action = None
+        self.recorded_action_time = None
 
     def __del__(self):
         self.exit()
@@ -74,6 +78,25 @@ class BitMEXWebsocket():
     #
     # Data methods
     #
+
+    def wait_update(self):    
+        if not self.recorded_action_time:
+            self.recorded_action_time = datetime.datetime.now()
+        if not self.last_action:
+            self.last_action = datetime.datetime.now()
+        start = datetime.datetime.now()
+        #Always process at least one message
+        while self.recorded_action_time <= self.last_action:
+            pass
+        else:
+            self.last_action = datetime.datetime.now()
+            end = datetime.datetime.now()
+            td = (end-start)
+            self.logger.info("Waited for {:0.2f} seconds.".format(int(td.seconds) + int(td.microseconds)/float(1000000)))
+            return
+        
+
+
     def get_instrument(self, symbol):
         instruments = self.data['instrument']
         matchingInstruments = [i for i in instruments if i['symbol'] == symbol]
@@ -296,6 +319,9 @@ class BitMEXWebsocket():
                         }
                         order_logger.info(json.dumps(order_out)) 
 
+                    #record when new information arrives to trigger wait_update to return
+                    if table in [ 'quote', 'trade', 'orderBookL2']:
+                        self.recorded_action_time = datetime.datetime.now()
 
                 elif action == 'update':
                     self.logger.debug('%s: updating %s' % (table, message['data']))
@@ -322,6 +348,10 @@ class BitMEXWebsocket():
                         # Remove canceled / filled orders
                         if table == 'order' and item['leavesQty'] <= 0:
                             self.data[table].remove(item)
+
+                    #record when new information arrives to trigger wait_update to return
+                    if table in [ 'quote', 'trade', 'orderBookL2']:
+                        self.recorded_action_time = datetime.datetime.now()
 
                 elif action == 'delete':
                     self.logger.debug('%s: deleting %s' % (table, message['data']))

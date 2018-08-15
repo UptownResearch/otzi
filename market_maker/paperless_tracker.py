@@ -22,9 +22,6 @@ if settings.LOG_ORDERS_TO_FILE:
     pt_logger.addHandler(ofh)
 
 
-
-
-
 class paperless_tracker:
 
     __instance = None

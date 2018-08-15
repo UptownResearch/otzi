@@ -71,6 +71,9 @@ class BitMEX(object):
     #
     # Public methods
     #
+    def wait_update(self):
+        return self.ws.wait_update()
+        
     def ticker_data(self, symbol=None):
         """Get ticker data."""
         if symbol is None:
