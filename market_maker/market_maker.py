@@ -8,6 +8,8 @@ import requests
 import atexit
 import signal
 import json
+import base64
+import uuid
 
 from market_maker import bitmex
 from market_maker.settings import settings
@@ -307,6 +309,8 @@ class ExchangeInterface:
             return self.bitmex.amend_bulk_orders(orders), orders
 
     def create_bulk_orders(self, orders):
+        for order in orders:
+            order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
         if settings.compare is not True:
             if self.dry_run and settings.paperless == False:
                 return orders
@@ -354,6 +358,7 @@ class ExchangeInterface:
         return 0
 
     def loop(self):
+
         if settings.paperless or settings.compare:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
             pp_traker.loop_functions()
@@ -568,6 +573,10 @@ class OrderManager:
                         # If price has changed, and the change is more than our RELIST_INTERVAL, amend.
                         desired_order['price'] != order['price'] and
                         abs((desired_order['price'] / order['price']) - 1) > settings.RELIST_INTERVAL):
+                    
+                    # The math in this next line seems wrong. Instead of the new orderQty being 
+                    # order['cumQty'] + desired_order['orderQty'], it seems like it should be
+                    # desired_order['orderQty'] - order['cumQty']  
                     to_amend.append({'orderID': order['orderID'], 'orderQty': order['cumQty'] + desired_order['orderQty'],
                                      'price': desired_order['price'], 'side': order['side']})
             except IndexError:

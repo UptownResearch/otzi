@@ -5,6 +5,24 @@ from market_maker.utils import constants
 import copy
 import datetime
 import random
+import logging
+import json
+
+#log orders to file
+pt_logger = logging.getLogger("paperless_orders")
+pt_logger.setLevel(logging.INFO)
+
+if settings.LOG_ORDERS_TO_FILE: 
+    order_file = settings.ROOT_LOG_LOCATION + "pt_orders/" + \
+                ('p' if settings.paperless else "") + \
+                f"{datetime.datetime.now():%Y-%m-%d}" + ".log"
+    ofh = logging.FileHandler(order_file)
+    simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
+    ofh.setFormatter(simple_formatter)
+    pt_logger.addHandler(ofh)
+
+
+
 
 
 class paperless_tracker:
@@ -43,6 +61,13 @@ class paperless_tracker:
         buy_orders = []
         sell_orders = []
         for orders in order:
+            order_out = {
+            'status': 'Created',
+            'paperless' : settings.paperless,
+            'type' : 'Paper',
+            'data' : orders
+            }
+            pt_logger.info(json.dumps(order_out))
             if orders["side"] == "Buy":
                 buy_orders.append(copy.deepcopy(orders))
             else:
@@ -130,6 +155,15 @@ class paperless_tracker:
                         self.calculate_position(orders, temp["size"])
                         orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                         self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                        order_out = {
+                            'status' : 'Partially Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"], 
+                            'data' : orders
+                        }
+                        pt_logger.info(json.dumps(order_out))
                         temp["size"] = 0
                     else:
                         temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
@@ -138,6 +172,15 @@ class paperless_tracker:
                         orders["leavesQty"] = 0
                         self.filled.append(orders)
                         self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                        order_out = {
+                            'status' : 'Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"], 
+                            'data' : orders
+                        }
+                        pt_logger.info(json.dumps(order_out))
                         break
             else:
                 self.buy_partially_filled.append(orders)
@@ -156,7 +199,16 @@ class paperless_tracker:
                         orders["cumQty"] = orders["cumQty"] + temp["size"]
                         self.calculate_position(orders, temp["size"])
                         orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
-                        self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                        self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))  
+                        order_out = {
+                            'status' : 'Partially Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"], 
+                            'data' : orders
+                        }
+                        pt_logger.info(json.dumps(order_out))
                         temp["size"] = 0
                     else:
                         temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
@@ -165,6 +217,15 @@ class paperless_tracker:
                         orders["leavesQty"] = 0
                         self.filled.append(orders)
                         self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["orderQty"]) + " @ " + str(orders["price"]) + " By OderBook: " + str(temp["size"]) + " @ " + str(temp["price"]))
+                        order_out = {
+                            'status' : 'Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"], 
+                            'data' : orders
+                        }
+                        pt_logger.info(json.dumps(order_out))
                         break
             else:
                 self.sell_partially_filled.append(orders)
@@ -180,11 +241,11 @@ class paperless_tracker:
         sell = []
         buy = []
 
-        for orders in trades:
-            if orders['side'] == "Sell":
-                sell.append(orders)
+        for trade in trades:
+            if trade['side'] == "Sell":
+                sell.append(trade)
             else:
-                buy.append(orders)
+                buy.append(trade)
 
         for orders in self.buy_partially_filled:
             orignal_size = orders["orderQty"]
@@ -200,8 +261,17 @@ class paperless_tracker:
                             self.calculate_position(orders, temp["size"])
                             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                             self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
-                            temp["size"] = 0
                             self.timestamp = temp_date
+                            order_out = {
+                            'status' : 'Partially Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"], 
+                            'data' : orders
+                            }
+                            pt_logger.info(json.dumps(order_out))
+                            temp["size"] = 0
                         else:
                             self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orignal_size) + " @ " + str(orders["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
                             temp["size"] = temp["size"] - (orignal_size - orders["cumQty"])
@@ -210,6 +280,15 @@ class paperless_tracker:
                             orders["cumQty"] = orignal_size
                             orders["leavesQty"] = 0
                             self.timestamp = temp_date
+                            order_out = {
+                            'status' : 'Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"], 
+                            'data' : orders
+                            }
+                            pt_logger.info(json.dumps(order_out))
                             break
 
         for orders in self.sell_partially_filled:
@@ -226,6 +305,15 @@ class paperless_tracker:
                             self.calculate_position(orders, temp["size"])
                             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                             self.insert_to_log("Order Partially Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orignal_size) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " +  str(temp["timestamp"]))
+                            order_out = {
+                            'status' : 'Partially Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"],
+                            'data' : orders
+                            }
+                            pt_logger.info(json.dumps(order_out))
                             temp["size"] = 0
                             self.timestamp = temp_date
                         else:
@@ -236,6 +324,15 @@ class paperless_tracker:
                             orders["cumQty"] = orignal_size
                             orders["leavesQty"] = 0
                             self.timestamp = temp_date
+                            order_out = {
+                            'status' : 'Filled',
+                            'paperless' : settings.paperless,
+                            'type' : 'Paper',
+                            'fillprice' : temp["price"],
+                            'fillsize' : temp["size"], 
+                            'data' : orders
+                            }
+                            pt_logger.info(json.dumps(order_out))
                             break
 
         self.from_partially_to_filled()
@@ -492,6 +589,13 @@ class paperless_tracker:
                     self.buy_partially_filled[i]["orderQty"] = self.buy_partially_filled[i]["cumQty"]
                     self.filled.append(self.buy_partially_filled[i])
                 self.insert_to_log(" Cancelling - ID:" + str(self.buy_partially_filled[i]["orderID"]) + " " + self.buy_partially_filled[i]["side"] + " " + str(self.buy_partially_filled[i]["orderQty"]) + " @ " + str(self.buy_partially_filled[i]["price"]))
+                order_out = {
+                'status' : 'Cancelled',
+                'paperless' : settings.paperless,
+                'type' : 'Paper',
+                'data' : self.buy_partially_filled[i]
+                }
+                pt_logger.info(json.dumps(order_out))
                 del self.buy_partially_filled[i]
                 break
 
@@ -501,6 +605,13 @@ class paperless_tracker:
                     self.sell_partially_filled[i]["orderQty"] = self.sell_partially_filled[i]["cumQty"]
                     self.filled.append(self.sell_partially_filled[i])
                 self.insert_to_log(" Cancelling - ID:" + str(self.sell_partially_filled[i]["orderID"]) + " " + self.sell_partially_filled[i]["side"] + " " + str(self.sell_partially_filled[i]["orderQty"]) + " @ " + str(self.sell_partially_filled[i]["price"]))
+                order_out = {
+                'status' : 'Cancelled',
+                'paperless' : settings.paperless,
+                'type' : 'Paper',
+                'data' : self.sell_partially_filled[i]
+                }
+                pt_logger.info(json.dumps(order_out))
                 del self.sell_partially_filled[i]
                 break
 
