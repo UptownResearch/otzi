@@ -49,6 +49,7 @@ class ExchangeInterface:
                                     apiKey=settings.API_KEY, apiSecret=settings.API_SECRET,
                                     orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
                                     timeout=settings.TIMEOUT)
+        self.orderIDPrefix=settings.ORDERID_PREFIX
 
     def cancel_order(self, order):
         if settings.compare is not True:
