@@ -15,13 +15,15 @@ from market_maker.settings import settings
 #log orders to file
 order_logger = logging.getLogger("orders")
 order_logger.setLevel(logging.INFO)
-order_file = settings.ROOT_LOG_LOCATION + "orders/" + \
-            ('p' if settings.paperless else "") + \
-            f"{datetime.datetime.now():%Y-%m-%d}" + ".log"
-ofh = logging.FileHandler(order_file)
-simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
-ofh.setFormatter(simple_formatter)
-order_logger.addHandler(ofh)
+
+if settings.LOG_ORDERS_TO_FILE: 
+    order_file = settings.ROOT_LOG_LOCATION + "orders/" + \
+                ('p' if settings.paperless else "") + \
+                f"{datetime.datetime.now():%Y-%m-%d}" + ".log"
+    ofh = logging.FileHandler(order_file)
+    simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
+    ofh.setFormatter(simple_formatter)
+    order_logger.addHandler(ofh)
 
 
 # https://www.bitmex.com/api/explorer/
@@ -275,7 +277,7 @@ class BitMEX(object):
                 'status': 'Filled',
                 'paperless' : settings.paperless,
                 'type' : 'Live',
-                'data' : fill
+                'data' : postdict
                 }
                 order_logger.info(json.dumps(fill_out))  
             return 

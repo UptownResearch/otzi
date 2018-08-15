@@ -96,16 +96,6 @@ TIMEOUT = 7
 # If we're doing a dry run, use these numbers for BTC balances
 DRY_BTC = 50
 
-# Available levels: logging.(DEBUG|INFO|WARN|ERROR)
-LOG_LEVEL = logging.INFO
-
-#Log everything?
-ROOT_LOG = True
-
-#Where should the Root log go? 
-import os
-ROOT_LOG_LOCATION = os.path.expanduser("~") + "/log/smm/"
-
 # To uniquely identify orders placed by this bot, the bot sends a ClOrdID (Client order ID) that is attached
 # to each order so its source can be identified. This keeps the market maker from cancelling orders that are
 # manually placed, or orders placed by another bot.
@@ -118,6 +108,22 @@ ORDERID_PREFIX = "mm_bitmex_"
 # If any of these files (and this file) changes, reload the bot.
 WATCHED_FILES = [join('market_maker', 'market_maker.py'), join('market_maker', 'bitmex.py'), 'settings.py']
 
+########################################################################################################################
+# Logging
+########################################################################################################################
+
+# Available levels: logging.(DEBUG|INFO|WARN|ERROR)
+LOG_LEVEL = logging.INFO
+
+#Log everything?
+ROOT_LOG = True
+
+#Log Orders to FIle? 
+LOG_ORDERS_TO_FILE = True
+
+#Where should the Root log go? 
+import os
+ROOT_LOG_LOCATION = os.path.expanduser("~") + "/log/smm/"
 
 ########################################################################################################################
 # BitMEX Portfolio
