@@ -55,6 +55,7 @@ class BitMEX(object):
         self.session.headers.update({'user-agent': 'liquidbot-' + constants.VERSION})
         self.session.headers.update({'content-type': 'application/json'})
         self.session.headers.update({'accept': 'application/json'})
+        self.headers = None
 
         # Create websocket for streaming data
         self.ws = BitMEXWebsocket()
@@ -107,6 +108,14 @@ class BitMEX(object):
 
         """
         return self.ws.recent_trades()
+
+    def rate_limits(self):
+        if self.headers:
+            return (int(self.headers.get("x-ratelimit-limit",1)), 
+                    int(self.headers.get("x-ratelimit-remaining",0)),
+                    int(self.headers.get("x-ratelimit-reset",0)))
+        else:
+            return (1,0,0)
 
     #
     # Authentication required methods
@@ -327,6 +336,7 @@ class BitMEX(object):
             req = requests.Request(verb, url, json=postdict, auth=auth, params=query)
             prepped = self.session.prepare_request(req)
             response = self.session.send(prepped, timeout=timeout)
+            self.headers = response.headers
             # Make non-200s throw
             response.raise_for_status()
 

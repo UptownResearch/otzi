@@ -50,6 +50,9 @@ class ExchangeInterface:
                                     orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
                                     timeout=settings.TIMEOUT)
         self.orderIDPrefix=settings.ORDERID_PREFIX
+        self.rate_limit  = 1
+        self.rate_limit_remaining = 0
+        self.last_order_time = None
 
     def cancel_order(self, order):
         if settings.compare is not True:
@@ -298,6 +301,7 @@ class ExchangeInterface:
             raise errors.MarketEmptyError("Orderbook is empty, cannot quote")
 
     def amend_bulk_orders(self, orders):
+        self.last_order_time = datetime.now().timestamp() 
         if settings.compare is not True:
 
             if self.dry_run and settings.paperless == False:
@@ -310,6 +314,7 @@ class ExchangeInterface:
             return self.bitmex.amend_bulk_orders(orders), orders
 
     def create_bulk_orders(self, orders):
+        self.last_order_time = datetime.now().timestamp() 
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
         if settings.compare is not True:
@@ -329,6 +334,7 @@ class ExchangeInterface:
             return self.bitmex.create_bulk_orders(orders)
 
     def cancel_bulk_orders(self, orders):
+        self.last_order_time = datetime.now().timestamp() 
         if settings.compare is not True:
             if self.dry_run and settings.paperless == False:
                 return orders
@@ -358,12 +364,46 @@ class ExchangeInterface:
 
         return 0
 
+    def ok_to_enter_order(self):
+        if self.last_order_time:
+            time_since_last = datetime.now().timestamp() - self.last_order_time 
+            # force a 1 second wait for now
+            if time_since_last > max(self.current_api_call_timing(), 1):
+                return True
+            else:
+                return False
+        else:
+            self.last_order_time = datetime.now().timestamp() 
+            return True
+
+
+    def current_api_call_timing(self):
+        '''calculates the recommended time until next API call'''
+        if self.rate_limit == 1:
+            #have not received rate limit, default to 1 second
+            return 1
+        elif self.rate_limit_remaining < 1:
+            # need to wait until reset time, it appears
+            return self.rate_limit_reset - datetime.now().timestamp() 
+        else:
+            time_till_reset = self.rate_limit_reset - datetime.now().timestamp()           
+            return  float(time_till_reset) / self.rate_limit_remaining
+
+
     def loop(self):
         self.bitmex.wait_update()
+        (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
+            self.bitmex.rate_limits()
+        print(self.current_api_call_timing())
         if settings.paperless or settings.compare:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
             pp_traker.loop_functions()
 
+    def wait_update(self):         
+        if settings.paperless or settings.compare:
+            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_traker.loop_functions()
+        self.bitmex.wait_update()
 
 class OrderManager:
     def __init__(self):
@@ -715,22 +755,23 @@ class OrderManager:
 
     def run_loop(self):
         while True:
-            sys.stdout.write("-----\n")
-            sys.stdout.flush()
+            if self.exchange.ok_to_enter_order():
+                sys.stdout.write("-----\n")
+                sys.stdout.flush()
 
-            self.check_file_change()
-            sleep(settings.LOOP_INTERVAL)
+                self.check_file_change()
+                #sleep(settings.LOOP_INTERVAL)
 
-            # This will restart on very short downtime, but if it's longer,
-            # the MM will crash entirely as it is unable to connect to the WS on boot.
-            if not self.check_connection():
-                logger.error("Realtime data connection unexpectedly closed, restarting.")
-                self.restart()
+                # This will restart on very short downtime, but if it's longer,
+                # the MM will crash entirely as it is unable to connect to the WS on boot.
+                if not self.check_connection():
+                    logger.error("Realtime data connection unexpectedly closed, restarting.")
+                    self.restart()
 
-            self.sanity_check()  # Ensures health of mm - several cut-out points here
-            self.print_status()  # Print skew, delta, etc
-            self.place_orders()  # Creates desired orders and converges to existing orders
-            self.exchange.loop()
+                self.sanity_check()  # Ensures health of mm - several cut-out points here
+                self.print_status()  # Print skew, delta, etc
+                self.place_orders()  # Creates desired orders and converges to existing orders
+                self.exchange.loop()
 
     def restart(self):
         logger.info("Restarting the market maker...")
