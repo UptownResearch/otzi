@@ -394,7 +394,6 @@ class ExchangeInterface:
         self.bitmex.wait_update()
         (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
             self.bitmex.rate_limits()
-        print(self.current_api_call_timing())
         if settings.paperless or settings.compare:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
             pp_traker.loop_functions()
@@ -403,7 +402,10 @@ class ExchangeInterface:
         if settings.paperless or settings.compare:
             pp_traker = paperless_tracker.paperless_tracker.getInstance()
             pp_traker.loop_functions()
+        (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
+            self.bitmex.rate_limits()
         self.bitmex.wait_update()
+        return True
 
 class OrderManager:
     def __init__(self):
@@ -755,6 +757,7 @@ class OrderManager:
 
     def run_loop(self):
         while True:
+            self.exchange.wait_update(self)
             if self.exchange.ok_to_enter_order():
                 sys.stdout.write("-----\n")
                 sys.stdout.flush()
