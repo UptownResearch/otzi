@@ -15,6 +15,9 @@ from market_maker import bitmex
 from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
 from market_maker import paperless_tracker
+
+from market_maker.backtest.bitmexbacktest import BitMEXbacktest
+
 import logging
 
 
@@ -40,10 +43,19 @@ class ExchangeInterface:
             self.symbol = sys.argv[1]
         else:
             self.symbol = settings.SYMBOL
-        self.bitmex = bitmex.BitMEX(base_url=settings.BASE_URL, symbol=self.symbol,
+        if settings.BACKTEST:
+            self.bitmex = BitMEXbacktest(base_url=settings.BASE_URL, symbol=self.symbol,
                                     apiKey=settings.API_KEY, apiSecret=settings.API_SECRET,
                                     orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
                                     timeout=settings.TIMEOUT)
+        else:
+            self.bitmex = bitmex.BitMEX(base_url=settings.BASE_URL, symbol=self.symbol,
+                                    apiKey=settings.API_KEY, apiSecret=settings.API_SECRET,
+                                    orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
+                                    timeout=settings.TIMEOUT)
+        if settings.paperless:
+            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_traker.provide_exchange(self.bitmex)
         self.orderIDPrefix=settings.ORDERID_PREFIX
         self.rate_limit  = 1
         self.rate_limit_remaining = 0

@@ -45,11 +45,15 @@ class paperless_tracker:
             self.sell_partially_filled = []
             self.closed = []
             self.random_base = random.randint(0, 100000)
-            self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
+            #self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
             self.timestamp = None
             self.auxFunds = 0
             self.position = self.position = {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': "XBTUSD"}
             paperless_tracker.__instance = self
+            self.symbol = settings.SYMBOL
+
+    def provide_exchange(self, exchange):
+        self.exchange = exchange
 
     def track_orders_created(self, order):
 
@@ -82,7 +86,7 @@ class paperless_tracker:
         if len(sell_orders) > 0:
             self.sell_orders_created.extend(sell_orders)
 
-        order_book = self.exchange.market_deep()
+        order_book = self.exchange.market_depth(self.symbol)
 
         ask = []
         bid = []

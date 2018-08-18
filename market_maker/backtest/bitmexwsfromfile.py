@@ -7,8 +7,6 @@ from time import sleep
 import json
 import decimal
 import logging
-import datetime
-
 from market_maker.settings import settings
 from market_maker.auth.APIKeyAuth import generate_nonce, generate_signature
 from market_maker.utils.log import setup_custom_logger
@@ -18,87 +16,113 @@ from future.standard_library import hooks
 with hooks():  # Python 2/3 compat
     from urllib.parse import urlparse, urlunparse
 
-#user order logger to record fills
-import logging
-order_logger = logging.getLogger("orders")
+#New modules
+import datetime
+import iso8601
 
-# Connects to BitMEX websocket for streaming realtime data.
-# The Marketmaker still interacts with this as if it were a REST Endpoint, but now it can get
-# much more realtime data without heavily polling the API.
-#
-# The Websocket offers a bunch of data as raw properties right on the object.
-# On connect, it synchronously asks for a push of all this data then returns.
-# Right after, the MM can start using its data. It will be updated in realtime, so the MM can
-# poll as often as it wants.
-class BitMEXWebsocket():
+class BitMEXwsFromFile():
 
     # Don't grow a table larger than this amount. Helps cap memory usage.
     MAX_TABLE_LEN = 200
 
     def __init__(self):
         self.logger = logging.getLogger('root')
-        self.__reset()
-        self.ordersreturned = None 
+        self.messagelogger = logging.getLogger('bitmex_ws')
         self.last_action = None
         self.recorded_action_time = None
+        self.__reset()
 
     def __del__(self):
-        self.exit()
+        #self.exit()
+        pass
 
+    def increment_timestep(self):
+        parse = self.lines[self.currentline].split(' - ')
+        timestep = iso8601.parse_date(parse[0])
+        if not self.last_action:
+            self.last_action = timestep
+        self.__on_message(timestep, parse[1])
+        if self.currentline < (len(self.lines) -1):
+            self.currentline += 1
+        else:
+            raise EOFError("reached end of file")
+            
+        return timestep
+
+        
     def connect(self, endpoint="", symbol="XBTN15", shouldAuth=True):
         '''Connect to the websocket and initialize data stores.'''
 
         self.logger.debug("Connecting WebSocket.")
         self.symbol = symbol
-        self.shouldAuth = shouldAuth
+        #self.shouldAuth = shouldAuth
 
         # We can subscribe right in the connection querystring, so let's build that.
         # Subscribe to all pertinent endpoints
-        subscriptions = [sub + ':' + symbol for sub in ["quote", "trade"]]
-        subscriptions += ["instrument"]  # We want all of them
-        if self.shouldAuth:
-            subscriptions += [sub + ':' + symbol for sub in ["order", "execution", "orderBookL2"]]
-            subscriptions += ["margin", "position"]
+        #subscriptions = [sub + ':' + symbol for sub in ["quote", "trade"]]
+        #subscriptions += ["instrument"]  # We want all of them
+        #if self.shouldAuth:
+        #    subscriptions += [sub + ':' + symbol for sub in ["order", "execution", "orderBookL2"]]
+        #    subscriptions += ["margin", "position"]
 
         # Get WS URL and connect.
-        urlParts = list(urlparse(endpoint))
-        urlParts[0] = urlParts[0].replace('http', 'ws')
-        urlParts[2] = "/realtime?subscribe=" + ",".join(subscriptions)
-        wsURL = urlunparse(urlParts)
-        self.logger.info("Opening File: %s" % settings.WS_LOG_FILE)
+        #urlParts = list(urlparse(endpoint))
+        #urlParts[0] = urlParts[0].replace('http', 'ws')
+        #urlParts[2] = "/realtime?subscribe=" + ",".join(subscriptions)
+        #wsURL = urlunparse(urlParts)
+        wsURL=""
         self.logger.info("Connecting to %s" % wsURL)
         self.__connect(wsURL)
         self.logger.info('Connected to WS. Waiting for data images, this may take a moment...')
 
+        #Open the log file
+        self.logger.info("Opening File: %s" % settings.WS_LOG_FILE)
+        print(vars(settings))
+        self.lines = open(settings.WS_LOG_FILE, 'r').readlines()
+        self.currentline = 0 
+
+        #process first line of file to get an initial timestamp
+        self.recorded_action_time = self.increment_timestep()
+        while not {'instrument', 'trade', 'quote'} <= set(self.data):
+            self.last_action = self.increment_timestep()
+        print("symbol acquired")
+        
+        while not {'margin', 'position', 'order'} <= set(self.data):
+            self.last_action = self.increment_timestep()
+        
+        print("authorization acquired")
+        
+        
         # Connected. Wait for partials
-        self.__wait_for_symbol(symbol)
-        if self.shouldAuth:
-            self.__wait_for_account()
+        #self.__wait_for_symbol(symbol)
+        #if self.shouldAuth:
+        #    self.__wait_for_account()
         self.logger.info('Got all market data. Starting.')
 
     #
     # Data methods
     #
 
+    
     def wait_update(self):    
         if not self.recorded_action_time:
-            self.recorded_action_time = datetime.datetime.now()
-        if not self.last_action:
-            self.last_action = datetime.datetime.now()
-        start = datetime.datetime.now()
+            self.recorded_action_time = self.last_action
         #Always process at least one message
+        current_timestep = self.increment_timestep()
         while self.recorded_action_time <= self.last_action:
-            pass
+            try:
+                self.increment_timestep()
+            except:
+                raise EOFError
         else:
-            self.last_action = datetime.datetime.now()
-            end = datetime.datetime.now()
-            td = (end-start)
-            self.logger.info("Waited for {:0.2f} seconds.".format(int(td.seconds) + int(td.microseconds)/float(1000000)))
+            self.last_action = current_timestep
             return
-        
-
-
-    def get_instrument(self, symbol):
+    
+    def current_timestamp(self):
+        return self.last_action
+    
+    
+    def get_instrument(self, symbol="XBTUSD"):
         instruments = self.data['instrument']
         matchingInstruments = [i for i in instruments if i['symbol'] == symbol]
         if len(matchingInstruments) == 0:
@@ -157,21 +181,6 @@ class BitMEXWebsocket():
     def recent_trades(self):
         return self.data['trade']
 
-    def execution(self):
-        return self.data['execution']
-
-    def new_fills():
-        '''Returns new fills since method was last called'''
-        if self.ordersreturned == None:
-            self.ordersreturned = len(self.data['execution'])
-            return self.data['execution']
-        else:
-            if len(self.data['execution']) > self.ordersreturned:
-                neworders = self.data['execution'][self.ordersreturned:]  
-                self.ordersreturned = len(self.data['execution'])
-                return neworders 
-            else:
-                return []
     #
     # Lifecycle methods
     #
@@ -182,7 +191,7 @@ class BitMEXWebsocket():
 
     def exit(self):
         self.exited = True
-        self.ws.close()
+    #    self.ws.close()
 
     #
     # Private methods
@@ -192,68 +201,75 @@ class BitMEXWebsocket():
         '''Connect to the websocket in a thread.'''
         self.logger.debug("Starting thread")
 
-        ssl_defaults = ssl.get_default_verify_paths()
-        sslopt_ca_certs = {'ca_certs': ssl_defaults.cafile}
-        self.ws = websocket.WebSocketApp(wsURL,
-                                         on_message=self.__on_message,
-                                         on_close=self.__on_close,
-                                         on_open=self.__on_open,
-                                         on_error=self.__on_error,
-                                         header=self.__get_auth()
-                                         )
+        #ssl_defaults = ssl.get_default_verify_paths()
+        #sslopt_ca_certs = {'ca_certs': ssl_defaults.cafile}
+        #self.ws = websocket.WebSocketApp(wsURL,
+        #                                 on_message=self.__on_message,
+        #                                 on_close=self.__on_close,
+        #                                 on_open=self.__on_open,
+        #                                 on_error=self.__on_error,
+        #                                 header=self.__get_auth()
+        #                                 )
 
         setup_custom_logger('websocket', log_level=settings.LOG_LEVEL)
-        self.wst = threading.Thread(target=lambda: self.ws.run_forever(sslopt=sslopt_ca_certs))
-        self.wst.daemon = True
-        self.wst.start()
+        #self.wst = threading.Thread(target=lambda: self.ws.run_forever(sslopt=sslopt_ca_certs))
+        #self.wst.daemon = True
+        #self.wst.start()
         self.logger.info("Started thread")
 
         # Wait for connect before continuing
-        conn_timeout = 5
-        while (not self.ws.sock or not self.ws.sock.connected) and conn_timeout and not self._error:
-            sleep(1)
-            conn_timeout -= 1
+        #conn_timeout = 5
+        #while (not self.ws.sock or not self.ws.sock.connected) and conn_timeout and not self._error:
+        #    sleep(1)
+        #   conn_timeout -= 1
 
-        if not conn_timeout or self._error:
-            self.logger.error("Couldn't connect to WS! Exiting.")
-            self.exit()
-            sys.exit(1)
+        #if not conn_timeout or self._error:
+        #    self.logger.error("Couldn't connect to WS! Exiting.")
+        #    self.exit()
+        #    sys.exit(1)
 
     def __get_auth(self):
         '''Return auth headers. Will use API Keys if present in settings.'''
 
-        if self.shouldAuth is False:
-            return []
+        #if self.shouldAuth is False:
+        #    return []
 
         self.logger.info("Authenticating with API Key.")
         # To auth to the WS using an API key, we generate a signature of a nonce and
         # the WS API endpoint.
-        nonce = generate_nonce()
-        return [
-            "api-nonce: " + str(nonce),
-            "api-signature: " + generate_signature(settings.API_SECRET, 'GET', '/realtime', nonce, ''),
-            "api-key:" + settings.API_KEY
-        ]
+        #nonce = generate_nonce()
+        #return [
+        #    "api-nonce: " + str(nonce),
+        #    "api-signature: " + generate_signature(settings.API_SECRET, 'GET', '/realtime', nonce, ''),
+        #    "api-key:" + settings.API_KEY
+        #]
 
-    def __wait_for_account(self):
-        '''On subscribe, this data will come down. Wait for it.'''
-        # Wait for the keys to show up from the ws
-        while not {'margin', 'position', 'order'} <= set(self.data):
-            sleep(0.1)
+    #def __wait_for_account(self):
+    #    '''On subscribe, this data will come down. Wait for it.'''
+    #    # Wait for the keys to show up from the ws
+    #    while not {'margin', 'position', 'order'} <= set(self.data):
+    #        sleep(0.1)
 
-    def __wait_for_symbol(self, symbol):
-        '''On subscribe, this data will come down. Wait for it.'''
-        while not {'instrument', 'trade', 'quote'} <= set(self.data):
-            sleep(0.1)
+    #def __wait_for_symbol(self, symbol):
+    #    '''On subscribe, this data will come down. Wait for it.'''
+    #    while not {'instrument', 'trade', 'quote'} <= set(self.data):
+    #        sleep(0.1)
 
     def __send_command(self, command, args):
         '''Send a raw command.'''
-        self.ws.send(json.dumps({"op": command, "args": args or []}))
-
+        #self.ws.send(json.dumps({"op": command, "args": args or []}))
+        raise NotImplementedError
+        
     def __on_message(self, ws, message):
         '''Handler for parsing WS messages.'''
-        message = json.loads(message)
-        self.logger.debug(json.dumps(message))
+        ## ws is being used to pass the time
+        try:
+        	message = json.loads(message)
+        except:
+        	self.logger.error("Failed on message %s." % message)
+        	self.exit()
+
+        #self.messagelogger.debug(json.dumps(message))
 
         table = message['table'] if 'table' in message else None
         action = message['action'] if 'action' in message else None
@@ -294,36 +310,13 @@ class BitMEXWebsocket():
 
                     # Limit the max length of the table to avoid excessive memory usage.
                     # Don't trim orders because we'll lose valuable state if we do.
-                    if table not in ['order', 'orderBookL2'] and len(self.data[table]) > BitMEXWebsocket.MAX_TABLE_LEN:
-                        self.data[table] = self.data[table][(BitMEXWebsocket.MAX_TABLE_LEN // 2):]
+                    if table not in ['order', 'orderBookL2'] and len(self.data[table]) > BitMEXwsFromFile.MAX_TABLE_LEN:
+                        self.data[table] = self.data[table][(BitMEXwsFromFile.MAX_TABLE_LEN // 2):]
 
-                    #check for fills
-                    if table == 'execution': 
-                        for message in message['data']:
-                            if message["ordStatus"] == 'New':
-                                pass
-                            else:
-                                order_out = {
-                                    'status': 'Filled',
-                                    'paperless' : settings.paperless,
-                                    'type' : 'Live',
-                                    'data' : message
-                                }
-                                order_logger.info(json.dumps(order_out))  
-                    
-                    if table == 'order':
-                        order_out = {
-                            'status': 'OrderReceived',
-                            'paperless' : settings.paperless,
-                            'type' : 'Live',
-                            'data' : message['data']
-                        }
-                        order_logger.info(json.dumps(order_out)) 
-
-                    #record when new information arrives to trigger wait_update to return
+                    #record when new information arrives
                     if table in [ 'quote', 'trade', 'orderBookL2']:
-                        self.recorded_action_time = datetime.datetime.now()
-
+                        self.recorded_action_time = ws
+                    
                 elif action == 'update':
                     self.logger.debug('%s: updating %s' % (table, message['data']))
                     # Locate the item in the collection and update it.
@@ -350,10 +343,9 @@ class BitMEXWebsocket():
                         if table == 'order' and item['leavesQty'] <= 0:
                             self.data[table].remove(item)
 
-                    #record when new information arrives to trigger wait_update to return
-                    if table in [ 'quote', 'trade', 'orderBookL2']:
-                        self.recorded_action_time = datetime.datetime.now()
-
+                        #record when new information arrives
+                        if table in [ 'quote', 'trade', 'orderBookL2']:
+                            self.recorded_action_time = ws
                 elif action == 'delete':
                     self.logger.debug('%s: deleting %s' % (table, message['data']))
                     # Locate the item in the collection and remove it.
@@ -392,6 +384,7 @@ def findItemByKeys(keys, table, matchData):
         if matched:
             return item
 
+
 if __name__ == "__main__":
     # create console handler and set level to debug
     logger = logging.getLogger()
@@ -402,9 +395,11 @@ if __name__ == "__main__":
     # add formatter to ch
     ch.setFormatter(formatter)
     logger.addHandler(ch)
-    ws = BitMEXWebsocket()
-    ws.logger = logger
-    ws.connect("https://testnet.bitmex.com/api/v1")
-    while(ws.ws.sock.connected):
-        sleep(1)
+    wsfromfile = BitMEXwsFromFile()
+    wsfromfile.logger = logger
+    wsfromfile.connect(endpoint="", symbol="XBTUSD", shouldAuth=True)
+    logger.info(wsfromfile.get_ticker("XBTUSD"))
+    logger.info(wsfromfile.current_timestamp())
+    wsfromfile.wait_update()
+    logger.info(wsfromfile.current_timestamp())
 
