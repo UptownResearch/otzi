@@ -72,6 +72,9 @@ class BitMEX(object):
     #
     # Public methods
     #
+    def current_timestamp(self):
+        return datetime.datetime.now()
+
     def wait_update(self):
         return self.ws.wait_update()
         

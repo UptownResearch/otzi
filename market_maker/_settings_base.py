@@ -144,7 +144,8 @@ paperless = False
 ########################################################################################################################
 
 #If Backtesting, BACKTEST and paperless must both be True
-BACKTEST = True
+#BACKTEST = True
+BACKTEST = False
 
 #WS Log file 
 opendate = datetime.date(2018, 8, 9)
