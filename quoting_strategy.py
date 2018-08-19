@@ -199,6 +199,7 @@ class CustomOrderManager(OrderManager):
                 to_create.append(neworder)
         else:
             #cancel existing orders and create new ones
+            logger.info("Length of existing orders: %d" % (len(existing_orders)))
             self.exchange.cancel_all_orders()
             buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy" }
             sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell" }

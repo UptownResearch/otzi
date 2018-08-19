@@ -408,7 +408,7 @@ class OrderManager:
                 if not settings.BACKTEST:
                     if not self.check_connection():
                         logger.error("Realtime data connection unexpectedly closed, restarting.")
-                    self.restart()
+                        self.restart()
                     self.sanity_check()  # Ensures health of mm - several cut-out points here
                     self.print_status()  # Print skew, delta, etc
                 else:
