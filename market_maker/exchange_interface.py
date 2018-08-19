@@ -54,8 +54,8 @@ class ExchangeInterface:
                                     orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
                                     timeout=settings.TIMEOUT)
         if settings.paperless:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            pp_traker.provide_exchange(self.bitmex)
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker.provide_exchange(self.bitmex)
         self.orderIDPrefix=settings.ORDERID_PREFIX
         self.rate_limit  = 1
         self.rate_limit_remaining = 0
@@ -65,9 +65,9 @@ class ExchangeInterface:
         if settings.compare is not True:
             tickLog = self.get_instrument()['tickLog']
             if settings.paperless:
-                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                pp_tracker = paperless_tracker.paperless_tracker.getInstance()
                 logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-                return pp_traker.cancel_order(order['orderID'])
+                return pp_tracker.cancel_order(order['orderID'])
 
             logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
             while True:
@@ -82,8 +82,8 @@ class ExchangeInterface:
         else:
             tickLog = self.get_instrument()['tickLog']
 
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            pp_traker.cancel_order(order['orderID'])
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker.cancel_order(order['orderID'])
             compare_logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
 
             logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
@@ -103,9 +103,9 @@ class ExchangeInterface:
                 return
 
             if settings.paperless:
-                pp_traker = paperless_tracker.paperless_tracker.getInstance()
+                pp_tracker = paperless_tracker.paperless_tracker.getInstance()
                 logger.info("Resetting current position. Canceling all existing orders.")
-                return pp_traker.cancel_all_orders()
+                return pp_tracker.cancel_all_orders()
 
             logger.info("Resetting current position. Canceling all existing orders.")
             tickLog = self.get_instrument()['tickLog']
@@ -125,9 +125,9 @@ class ExchangeInterface:
             sleep(settings.API_REST_INTERVAL)
         else:
 
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
             compare_logger.info("Resetting current position. Canceling all existing orders.")
-            pp_traker.cancel_all_orders()
+            pp_tracker.cancel_all_orders()
 
             logger.info("Resetting current position. Canceling all existing orders.")
             tickLog = self.get_instrument()['tickLog']
@@ -206,17 +206,17 @@ class ExchangeInterface:
                 symbol = self.symbol
 
             if settings.paperless:
-                pp_traker = paperless_tracker.paperless_tracker.getInstance()
-                return pp_traker.current_contract()
+                pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_tracker.current_contract()
 
             return self.get_position(symbol)['currentQty']
         else:
             if symbol is None:
                 symbol = self.symbol
 
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
 
-            return self.bitmex.position(symbol)['currentQty'], pp_traker.current_contract()
+            return self.bitmex.position(symbol)['currentQty'], pp_tracker.current_contract()
 
     def get_instrument(self, symbol=None):
         if symbol is None:
@@ -230,14 +230,14 @@ class ExchangeInterface:
                 return {'marginBalance': float(settings.DRY_BTC), 'availableFunds': float(settings.DRY_BTC)}
 
             if settings.paperless:
-                pp_traker = paperless_tracker.paperless_tracker.getInstance()
-                return pp_traker.get_funds()
+                pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_tracker.get_funds()
 
             return self.bitmex.funds()
         else:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
 
-            return self.bitmex.funds(), pp_traker.get_funds()
+            return self.bitmex.funds(), pp_tracker.get_funds()
 
     def get_orders(self):
         if settings.compare is not True:
@@ -245,12 +245,12 @@ class ExchangeInterface:
                 return []
 
             if settings.paperless:
-                pp_traker = paperless_tracker.paperless_tracker.getInstance()
-                return pp_traker.get_orders()
+                pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_tracker.get_orders()
 
             return self.bitmex.open_orders()
         else:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
 
             return self.bitmex.open_orders()
 
@@ -274,17 +274,17 @@ class ExchangeInterface:
                 symbol = self.symbol
 
             if settings.paperless:
-                pp_traker = paperless_tracker.paperless_tracker.getInstance()
-                return pp_traker.get_position(symbol)
+                pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+                return pp_tracker.get_position(symbol)
 
             return self.bitmex.position(symbol)
         else:
             if symbol is None:
                 symbol = self.symbol
 
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
 
-            return self.bitmex.position(symbol), pp_traker.get_position(symbol)
+            return self.bitmex.position(symbol), pp_tracker.get_position(symbol)
 
     def get_ticker(self, symbol=None):
         if symbol is None:
@@ -308,7 +308,11 @@ class ExchangeInterface:
             raise errors.MarketEmptyError("Orderbook is empty, cannot quote")
 
     def amend_bulk_orders(self, orders):
-        self.last_order_time = datetime.now().timestamp() 
+        self.last_order_time = self.bitmex.current_timestamp().timestamp() 
+        if settings.paperless:
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker.cancel_all_orders()
+            pp_tracker.track_orders_created(orders)
         if settings.compare is not True:
 
             if self.dry_run and settings.paperless == False:
@@ -316,12 +320,14 @@ class ExchangeInterface:
 
             if settings.paperless:
                 return orders
+
             return self.bitmex.amend_bulk_orders(orders)
         else:
+
             return self.bitmex.amend_bulk_orders(orders), orders
 
     def create_bulk_orders(self, orders):
-        self.last_order_time = datetime.now().timestamp() 
+        self.last_order_time = self.bitmex.current_timestamp().timestamp() 
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
         if settings.compare is not True:
@@ -341,7 +347,7 @@ class ExchangeInterface:
             return self.bitmex.create_bulk_orders(orders)
 
     def cancel_bulk_orders(self, orders):
-        self.last_order_time = datetime.now().timestamp() 
+        self.last_order_time = self.bitmex.current_timestamp().timestamp() 
         if settings.compare is not True:
             if self.dry_run and settings.paperless == False:
                 return orders
@@ -360,27 +366,31 @@ class ExchangeInterface:
     def market_deep(self):
         return self.bitmex.market_depth("x")
 
+    def current_timestamp(self):
+        return self.bitmex.current_timestamp()
+
     def contracts_this_run(self):
 
         if self.dry_run and settings.paperless == False and settings.compare is not True:
             self.get_delta()
 
         if settings.paperless or settings.compare:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            return pp_traker.contract_traded_this_run()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+            return pp_tracker.contract_traded_this_run()
 
         return 0
 
     def ok_to_enter_order(self):
         if self.last_order_time:
-            time_since_last = datetime.now().timestamp() - self.last_order_time 
+            time_since_last = self.bitmex.current_timestamp().timestamp() - self.last_order_time 
             # force a 1 second wait for now
             if time_since_last > max(self.current_api_call_timing(), 1):
+                self.last_order_time = self.bitmex.current_timestamp().timestamp() 
                 return True
             else:
                 return False
         else:
-            self.last_order_time = datetime.now().timestamp() 
+            self.last_order_time = self.bitmex.current_timestamp().timestamp() 
             return True
 
 
@@ -391,9 +401,9 @@ class ExchangeInterface:
             return 1
         elif self.rate_limit_remaining < 1:
             # need to wait until reset time, it appears
-            return self.rate_limit_reset - datetime.now().timestamp() 
+            return self.rate_limit_reset - self.bitmex.current_timestamp().timestamp() 
         else:
-            time_till_reset = self.rate_limit_reset - datetime.now().timestamp()           
+            time_till_reset = self.rate_limit_reset - self.bitmex.current_timestamp().timestamp()           
             return  float(time_till_reset) / self.rate_limit_remaining
 
 
@@ -402,13 +412,13 @@ class ExchangeInterface:
         (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
             self.bitmex.rate_limits()
         if settings.paperless or settings.compare:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            pp_traker.loop_functions()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker.loop_functions()
 
     def wait_update(self):         
         if settings.paperless or settings.compare:
-            pp_traker = paperless_tracker.paperless_tracker.getInstance()
-            pp_traker.loop_functions()
+            pp_tracker = paperless_tracker.paperless_tracker.getInstance()
+            pp_tracker.loop_functions()
         (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
             self.bitmex.rate_limits()
         self.bitmex.wait_update()

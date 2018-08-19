@@ -54,7 +54,7 @@ class OrderManager:
             logger.info("Order Manager initializing, connecting to BitMEX. Live run: executing real trades.")
             compare_logger.info("Order Manager initializing, connecting to BitMEX. Live run: executing real trades.")
 
-        self.start_time = datetime.now()
+        #self.start_time = self.exchange.current_timestep()
         self.instrument = self.exchange.get_instrument()
         if settings.compare is True:
             self.starting_qty = self.exchange.get_delta()[0]
@@ -387,25 +387,34 @@ class OrderManager:
         sys.exit()
 
     def run_loop(self):
+        def print_output():
+            sys.stdout.write("-----\n")
+            sys.stdout.flush()
+            self.print_status()
+
         while True:
             self.exchange.wait_update()
             if self.exchange.ok_to_enter_order():
-                sys.stdout.write("-----\n")
-                sys.stdout.flush()
+
 
                 self.check_file_change()
                 #sleep(settings.LOOP_INTERVAL)
 
                 # This will restart on very short downtime, but if it's longer,
                 # the MM will crash entirely as it is unable to connect to the WS on boot.
-                if not self.check_connection():
-                    logger.error("Realtime data connection unexpectedly closed, restarting.")
-                    self.restart()
 
-                self.sanity_check()  # Ensures health of mm - several cut-out points here
-                self.print_status()  # Print skew, delta, etc
                 self.place_orders()  # Creates desired orders and converges to existing orders
-                self.exchange.loop()
+ 
+                if not settings.BACKTEST:
+                    if not self.check_connection():
+                        logger.error("Realtime data connection unexpectedly closed, restarting.")
+                    self.restart()
+                    self.sanity_check()  # Ensures health of mm - several cut-out points here
+                    self.print_status()  # Print skew, delta, etc
+                else:
+                    periodically_call(print_output, amount=1000)
+                #The following should now be taken care of by wait_update
+                #self.exchange.loop()
 
     def restart(self):
         logger.info("Restarting the market maker...")
@@ -414,7 +423,19 @@ class OrderManager:
 #
 # Helpers
 #
+def static_vars(**kwargs):
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+    return decorate
 
+@static_vars(counter=0)
+def periodically_call(afunc, amount=10):
+    periodically_call.counter += 1
+    if periodically_call.counter > amount:
+        periodically_call.counter = 0
+        return afunc()
 
 def XBt_to_XBT(XBt):
     return float(XBt) / constants.XBt_TO_XBT

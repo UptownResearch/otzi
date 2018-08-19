@@ -58,7 +58,9 @@ class BitMEXbacktest(object):
     #
     # Public methods
     #
-    
+    def current_timestamp(self):
+        return self.ws.current_timestamp()
+
     def wait_update(self):
         return self.ws.wait_update()
     
