@@ -1,4 +1,5 @@
 import sys
+import requests
 
 from market_maker.market_maker import OrderManager, logger 
 from market_maker.settings import settings
@@ -18,7 +19,8 @@ if settings.ROOT_LOG:
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
-        rootlogger.addHandler(fh)
+    rootlogger = logging.getLogger("root")
+    rootlogger.addHandler(fh)
     rootlogger.setLevel(logging.DEBUG)
     level = logging.getLogger().getEffectiveLevel()
     rootlogger.info('Root at level %s - Logging to file: %s' % (level, file_location))
@@ -130,22 +132,40 @@ class CustomOrderManager(OrderManager):
         tickLog = self.exchange.get_instrument()['tickLog']
         to_amend = []
         to_create = []
-
         existing_orders = self.exchange.get_orders()
+        buyprice = math.toNearest(self.start_position_buy, self.instrument['tickSize'])
+        sellprice = math.toNearest(self.start_position_sell, self.instrument['tickSize'])
 
-         {'price': price, 'orderQty': quantity, 'side': "Buy" if index < 0 else "Sell"}
-         math.toNearest(start_position * (1 + settings.INTERVAL) ** index, self.instrument['tickSize'])
-         self.start_position_buy
-         self.start_position_sell
-
-        if len(existing_orders) == 2:
+        buy_present = sell_present = False
+        if len(existing_orders) > 1:
             for order in existing_orders:
-                if order['side'] == "Buy" and order['price'] != self.start_position_buy:
-                    neworder = {'price':  self.start_position_buy, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy" }
-                    to_amend.append(neworder)
-                elif order['price'] != self.start_position_sell:
-                    neworder = {'price':  self.start_position_sell, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell" }
-                    to_amend.append(neworder)
+                if order['side'] == "Buy":
+                    if order['price'] != buyprice:                     
+                        neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE,
+                                        'price': buyprice, 'side': "Buy"}
+                        if not buy_present:     
+                            buy_present = True
+                            to_amend.append(neworder)
+                        else:
+                            #neworder['orderQty'] = 0
+                            pass
+                    else:
+                        buy_present = True
+                    
+
+                else:
+                    if order['price'] != sellprice:
+                        neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE, 
+                                        'price':  sellprice, 'side': "Sell" }
+                        if not sell_present:     
+                            sell_present = True
+                            to_amend.append(neworder)
+                        else:
+                            #neworder['orderQty'] = 0
+                            pass
+                    else:
+                        sell_present = True
+                    
 
             if len(to_amend) > 0:
                 for amended_order in reversed(to_amend):
@@ -171,17 +191,17 @@ class CustomOrderManager(OrderManager):
                     else:
                         logger.error("Unknown error on amend: %s. Exiting" % errorObj)
                         sys.exit(1)
-        else if len(existing_orders) == 1:
+        elif len(existing_orders) == 1:
             for order in existing_orders:
                 side = "Buy" if order['side'] == "Sell" else "Sell"
-                price = self.start_position_buy if order['side'] == "Sell" else self.start_position_sell
+                price = buyprice if order['side'] == "Sell" else sellprice
                 neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side }
                 to_create.append(neworder)
         else:
             #cancel existing orders and create new ones
             self.exchange.cancel_all_orders()
-            buyorder = {'price':  self.start_position_buy, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy" }
-            sellorder = {'price':  self.start_position_sell, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell" }
+            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy" }
+            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell" }
             to_create.append(buyorder)
             to_create.append(sellorder)
 

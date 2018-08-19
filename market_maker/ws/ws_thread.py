@@ -95,8 +95,6 @@ class BitMEXWebsocket():
             td = (end-start)
             self.logger.info("Waited for {:0.2f} seconds.".format(int(td.seconds) + int(td.microseconds)/float(1000000)))
             return
-        
-
 
     def get_instrument(self, symbol):
         instruments = self.data['instrument']
@@ -302,7 +300,7 @@ class BitMEXWebsocket():
                         for message in message['data']:
                             if message["ordStatus"] == 'New':
                                 pass
-                            else:
+                            elif message["ordStatus"] == 'Filled':
                                 order_out = {
                                     'status': 'Filled',
                                     'paperless' : settings.paperless,
