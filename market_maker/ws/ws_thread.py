@@ -16,6 +16,9 @@ from future.standard_library import hooks
 with hooks():  # Python 2/3 compat
     from urllib.parse import urlparse, urlunparse
 
+#user order logger to record fills
+import logging
+order_logger = logging.getLogger("orders")
 
 # Connects to BitMEX websocket for streaming realtime data.
 # The Marketmaker still interacts with this as if it were a REST Endpoint, but now it can get
@@ -33,6 +36,7 @@ class BitMEXWebsocket():
     def __init__(self):
         self.logger = logging.getLogger('root')
         self.__reset()
+        self.ordersreturned = None 
 
     def __del__(self):
         self.exit()
@@ -49,7 +53,7 @@ class BitMEXWebsocket():
         subscriptions = [sub + ':' + symbol for sub in ["quote", "trade"]]
         subscriptions += ["instrument"]  # We want all of them
         if self.shouldAuth:
-            subscriptions += [sub + ':' + symbol for sub in ["order", "execution"]]
+            subscriptions += [sub + ':' + symbol for sub in ["order", "execution", "orderBookL2"]]
             subscriptions += ["margin", "position"]
 
         # Get WS URL and connect.
@@ -108,7 +112,8 @@ class BitMEXWebsocket():
         return self.data['margin'][0]
 
     def market_depth(self, symbol):
-        raise NotImplementedError('orderBook is not subscribed; use askPrice and bidPrice on instrument')
+        return self.data['orderBookL2']
+        #raise NotImplementedError('orderBook is not subscribed; use askPrice and bidPrice on instrument')
         # return self.data['orderBook25'][0]
 
     def open_orders(self, clOrdIDPrefix):
@@ -128,6 +133,21 @@ class BitMEXWebsocket():
     def recent_trades(self):
         return self.data['trade']
 
+    def execution(self):
+        return self.data['execution']
+
+    def new_fills(self):
+        '''Returns new fills since method was last called'''
+        if self.ordersreturned == None:
+            self.ordersreturned = len(self.data['execution'])
+            return self.data['execution']
+        else:
+            if len(self.data['execution']) > self.ordersreturned:
+                neworders = self.data['execution'][self.ordersreturned:]  
+                self.ordersreturned = len(self.data['execution'])
+                return neworders 
+            else:
+                return []
     #
     # Lifecycle methods
     #
@@ -252,6 +272,30 @@ class BitMEXWebsocket():
                     # Don't trim orders because we'll lose valuable state if we do.
                     if table not in ['order', 'orderBookL2'] and len(self.data[table]) > BitMEXWebsocket.MAX_TABLE_LEN:
                         self.data[table] = self.data[table][(BitMEXWebsocket.MAX_TABLE_LEN // 2):]
+
+                    #check for fills
+                    if table == 'execution': 
+                        for message in message['data']:
+                            if message["ordStatus"] == 'New':
+                                pass
+                            else:
+                                order_out = {
+                                    'status': 'Filled',
+                                    'paperless' : settings.paperless,
+                                    'type' : 'Live',
+                                    'data' : message
+                                }
+                                order_logger.info(json.dumps(order_out))  
+                    
+                    if table == 'order':
+                        order_out = {
+                            'status': 'OrderReceived',
+                            'paperless' : settings.paperless,
+                            'type' : 'Live',
+                            'data' : message['data']
+                        }
+                        order_logger.info(json.dumps(order_out)) 
+
 
                 elif action == 'update':
                     self.logger.debug('%s: updating %s' % (table, message['data']))

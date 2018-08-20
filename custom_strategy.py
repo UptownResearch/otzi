@@ -8,20 +8,15 @@ class CustomOrderManager(OrderManager):
 
     def place_orders(self) -> None:
         # implement your custom strategy here
+        super(CustomOrderManager, self).place_orders()  
+        #buy_orders = []
+        #sell_orders = []
 
-        # implement your custom strategy here
-
-        buy_orders = []
-        sell_orders = []
-        ticker = self.exchange.get_ticker()
-        mid = ticker["mid"]
         # populate buy and sell orders, e.g.
-        if self.onlyone:
-            buy_orders.append({'price': 7000, 'orderQty': 7000, 'side': "Buy"})
-            sell_orders.append({'price': 8000, 'orderQty': 8000, 'side': "Sell"})
-            self.onlyone = False
+        #buy_orders.append({'price': 999.0, 'orderQty': 5, 'side': "Buy"})
+        #sell_orders.append({'price': 1001.0, 'orderQty': 5, 'side': "Sell"})
 
-        self.converge_orders(buy_orders, sell_orders)
+        #self.converge_orders(buy_orders, sell_orders)
 
 
 def run() -> None:
@@ -32,3 +27,7 @@ def run() -> None:
         order_manager.run_loop()
     except (KeyboardInterrupt, SystemExit):
         sys.exit()
+
+
+run()
+# run python3 ./custom_strategy.py
