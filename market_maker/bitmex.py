@@ -215,7 +215,7 @@ class BitMEX(object):
             'data' : postdict
         }
         order_logger.info(json.dumps(order_out))
-        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='PUT', rethrow_errors=True)
+        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='PUT', rethrow_errors=True, max_retries=3)
 
     @authentication_required
     def create_bulk_orders(self, orders):
@@ -233,7 +233,7 @@ class BitMEX(object):
             'data' : postdict
         }
         order_logger.info(json.dumps(order_out))        
-        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='POST')
+        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='POST', max_retries=3)
 
     @authentication_required
     def open_orders(self):
@@ -288,6 +288,8 @@ class BitMEX(object):
             return
         else:
             for fill in newfills:
+                if not fill["execType"] is 'Filled':
+                    continue
                 fill_out = {
                 'status': 'Filled',
                 'paperless' : settings.paperless,

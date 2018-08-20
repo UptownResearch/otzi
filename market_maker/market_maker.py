@@ -412,7 +412,7 @@ class OrderManager:
                     self.sanity_check()  # Ensures health of mm - several cut-out points here
                     self.print_status()  # Print skew, delta, etc
                 else:
-                    periodically_call(print_output, amount=1000)
+                    periodically_call(print_output, amount=10)
                 #The following should now be taken care of by wait_update
                 #self.exchange.loop()
 
