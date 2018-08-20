@@ -20,8 +20,8 @@ import logging
 
 
 # Used for reloading the bot - saves modified times of key files
-import os
-watched_files_mtimes = [(f, getmtime(f)) for f in settings.WATCHED_FILES]
+#import os
+#watched_files_mtimes = [(f, getmtime(f)) for f in settings.WATCHED_FILES]
 
 
 #
@@ -33,10 +33,9 @@ compare_logger = logging.getLogger("paperless")
 compare_logger.setLevel(logging.WARN)
 #fh = logging.FileHandler("paperless_logger.log")
 #formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 #fh.setFormatter(formatter)
 #compare_logger.addHandler(fh)
-
 
 class OrderManager:
     def __init__(self):
@@ -397,7 +396,7 @@ class OrderManager:
             if self.exchange.ok_to_enter_order():
 
 
-                self.check_file_change()
+                #self.check_file_change()
                 #sleep(settings.LOOP_INTERVAL)
                 self.sanity_check()  # Ensures health of mm - several cut-out points here
 

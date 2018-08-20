@@ -19,7 +19,7 @@ order_logger.setLevel(logging.INFO)
 if settings.LOG_ORDERS_TO_FILE: 
     order_file = settings.ROOT_LOG_LOCATION + "orders/" + \
                 ('p' if settings.paperless else "") + \
-                f"{datetime.datetime.now():%Y-%m-%d}" + ".log"
+                f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
     ofh = logging.FileHandler(order_file)
     simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
     ofh.setFormatter(simple_formatter)

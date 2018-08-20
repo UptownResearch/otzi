@@ -21,11 +21,6 @@ from market_maker.backtest.bitmexbacktest import BitMEXbacktest
 import logging
 
 
-# Used for reloading the bot - saves modified times of key files
-import os
-watched_files_mtimes = [(f, getmtime(f)) for f in settings.WATCHED_FILES]
-
-
 #
 # Helpers
 #

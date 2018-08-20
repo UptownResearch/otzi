@@ -6,6 +6,11 @@ import sys
 
 from market_maker.utils.dotdict import dotdict
 import market_maker._settings_base as baseSettings
+import json
+import os.path
+
+
+
 
 
 def import_path(fullpath):
@@ -32,10 +37,25 @@ if symbol:
     except Exception as e:
         print("Unable to find settings-%s.py." % symbol)
 
+#Load override file
+
+#settings_file_location = os.path.join('.', 'settings.json')
+path = os.path.abspath(__file__)
+dir_path = os.path.dirname(path)
+settings_file_location = os.path.join(dir_path , 'settings.json')
+override_settings = {}
+#if os.path.exists(settings_file_location):
+#    print("IT DOES EXIST!")
+print(settings_file_location)
+with open(settings_file_location, 'r') as settings_file:
+    override_settings = json.load(settings_file)
+
+
 # Assemble settings.
 settings = {}
 settings.update(vars(baseSettings))
 settings.update(vars(userSettings))
+settings.update(vars(dotdict(override_settings)))
 if symbolSettings:
     settings.update(vars(symbolSettings))
 
