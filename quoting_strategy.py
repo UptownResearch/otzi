@@ -130,12 +130,16 @@ class CustomOrderManager(OrderManager):
         '''
 
     def make_orders(self) -> None:
+        #force a recalculation 
+        #self.get_ticker()
+
         tickLog = self.exchange.get_instrument()['tickLog']
         to_amend = []
         to_create = []
         existing_orders = self.exchange.get_orders()
         buyprice = math.toNearest(self.start_position_buy, self.instrument['tickSize'])
         sellprice = math.toNearest(self.start_position_sell, self.instrument['tickSize'])
+
 
         buy_present = sell_present = False
         if len(existing_orders) > 1:

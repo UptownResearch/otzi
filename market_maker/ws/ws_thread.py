@@ -93,7 +93,8 @@ class BitMEXWebsocket():
             self.last_action = datetime.datetime.now()
             end = datetime.datetime.now()
             td = (end-start)
-            self.logger.info("Waited for {:0.2f} seconds.".format(int(td.seconds) + int(td.microseconds)/float(1000000)))
+            if td.seconds > 2.0:
+                self.logger.info("Waited for {:0.2f} seconds.".format(int(td.seconds) + int(td.microseconds)/float(1000000)))
             return
 
     def get_instrument(self, symbol):

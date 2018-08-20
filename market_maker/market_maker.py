@@ -399,6 +399,7 @@ class OrderManager:
 
                 self.check_file_change()
                 #sleep(settings.LOOP_INTERVAL)
+                self.sanity_check()  # Ensures health of mm - several cut-out points here
 
                 # This will restart on very short downtime, but if it's longer,
                 # the MM will crash entirely as it is unable to connect to the WS on boot.
@@ -409,7 +410,6 @@ class OrderManager:
                     if not self.check_connection():
                         logger.error("Realtime data connection unexpectedly closed, restarting.")
                         self.restart()
-                    self.sanity_check()  # Ensures health of mm - several cut-out points here
                     self.print_status()  # Print skew, delta, etc
                 else:
                     periodically_call(print_output, amount=10)
