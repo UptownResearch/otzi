@@ -30,12 +30,12 @@ watched_files_mtimes = [(f, getmtime(f)) for f in settings.WATCHED_FILES]
 logger = log.setup_custom_logger('root')
 
 compare_logger = logging.getLogger("paperless")
-compare_logger.setLevel(logging.INFO)
-fh = logging.FileHandler("paperless_logger.log")
-formatter = logging.Formatter(
+compare_logger.setLevel(logging.WARN)
+#fh = logging.FileHandler("paperless_logger.log")
+#formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-compare_logger.addHandler(fh)
+#fh.setFormatter(formatter)
+#compare_logger.addHandler(fh)
 
 
 class OrderManager:
