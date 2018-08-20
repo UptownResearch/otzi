@@ -26,7 +26,7 @@ def import_path(fullpath):
     del sys.path[0]
     return module
 
-
+'''
 userSettings = import_path(os.path.join('.', 'settings'))
 symbolSettings = None
 symbol = sys.argv[1] if len(sys.argv) > 1 else None
@@ -36,28 +36,33 @@ if symbol:
         symbolSettings = import_path(os.path.join('..', 'settings-%s' % symbol))
     except Exception as e:
         print("Unable to find settings-%s.py." % symbol)
+'''
 
 #Load override file
+class AutoVar(object):
+    def __init__(self, data):
+        self.__dict__ = data
 
-#settings_file_location = os.path.join('.', 'settings.json')
+
 path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
 settings_file_location = os.path.join(dir_path , 'settings.json')
 override_settings = {}
-#if os.path.exists(settings_file_location):
-#    print("IT DOES EXIST!")
 print(settings_file_location)
-with open(settings_file_location, 'r') as settings_file:
-    override_settings = json.load(settings_file)
+if os.path.exists(settings_file_location):
+    with open(settings_file_location, 'r') as settings_file:
+        override_settings = json.load(settings_file)
+override_settings = AutoVar(override_settings)
+#print(override_settings)
 
 
 # Assemble settings.
 settings = {}
 settings.update(vars(baseSettings))
-settings.update(vars(userSettings))
-settings.update(vars(dotdict(override_settings)))
-if symbolSettings:
-    settings.update(vars(symbolSettings))
+#settings.update(vars(userSettings))
+settings.update(vars(override_settings))
+#if symbolSettings:
+#    settings.update(vars(symbolSettings))
 
 # Main export
 settings = dotdict(settings)

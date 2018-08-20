@@ -4,3 +4,5 @@ dist/
 *.egg-info/
 env
 .idea/
+market_maker/settings.json
+
