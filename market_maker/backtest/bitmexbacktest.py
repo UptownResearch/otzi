@@ -62,7 +62,11 @@ class BitMEXbacktest(object):
         return self.ws.current_timestamp()
 
     def wait_update(self):
-        return self.ws.wait_update()
+        try:
+            return self.ws.wait_update()
+        except:
+            raise 
+
     
     def ticker_data(self, symbol=None):
         """Get ticker data."""

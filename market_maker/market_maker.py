@@ -296,7 +296,6 @@ class OrderManager:
             logger.info("Creating %d orders:" % (len(to_create)))
             #compare_logger.info("Creating %d orders:" % (len(to_create)))
             for order in reversed(to_create):
-                print(order)
                 logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
                 #compare_logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
             self.exchange.create_bulk_orders(to_create)
@@ -473,8 +472,9 @@ class OrderManager:
 
     def run_loop(self):
         def print_output():
-            sys.stdout.write("-----\n")
-            sys.stdout.flush()
+            if not settings.BACKTEST:    
+                sys.stdout.write("-----\n")
+                sys.stdout.flush()
             self.print_status()
 
         while True:
