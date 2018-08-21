@@ -5,4 +5,4 @@ dist/
 env
 .idea/
 market_maker/settings.json
-
+settings.json

@@ -132,93 +132,9 @@ class CustomOrderManager(OrderManager):
     def make_orders(self) -> None:
         #force a recalculation 
         #self.get_ticker()
-
-        tickLog = self.exchange.get_instrument()['tickLog']
-        to_amend = []
-        to_create = []
-        existing_orders = self.exchange.get_orders()
         buyprice = math.toNearest(self.start_position_buy, self.instrument['tickSize'])
         sellprice = math.toNearest(self.start_position_sell, self.instrument['tickSize'])
-
-
-        buy_present = sell_present = False
-        if len(existing_orders) > 1:
-            for order in existing_orders:
-                if order['side'] == "Buy":
-                    if order['price'] != buyprice:                     
-                        neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE,
-                                        'price': buyprice, 'side': "Buy"}
-                        if not buy_present:     
-                            buy_present = True
-                            to_amend.append(neworder)
-                        else:
-                            #neworder['orderQty'] = 0
-                            pass
-                    else:
-                        buy_present = True
-                    
-
-                else:
-                    if order['price'] != sellprice:
-                        neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE, 
-                                        'price':  sellprice, 'side': "Sell" }
-                        if not sell_present:     
-                            sell_present = True
-                            to_amend.append(neworder)
-                        else:
-                            #neworder['orderQty'] = 0
-                            pass
-                    else:
-                        sell_present = True
-                    
-
-            if len(to_amend) > 0:
-                for amended_order in reversed(to_amend):
-                    reference_order = [o for o in existing_orders if o['orderID'] == amended_order['orderID']][0]
-                    logger.info("Amending %4s: %d @ %.*f to %d @ %.*f (%+.*f)" % (
-                        amended_order['side'],
-                        reference_order['leavesQty'], tickLog, reference_order['price'],
-                        (amended_order['orderQty'] - reference_order['cumQty']), tickLog, amended_order['price'],
-                        tickLog, (amended_order['price'] - reference_order['price'])
-                    ))
-                # This can fail if an order has closed in the time we were processing.
-                # The API will send us `invalid ordStatus`, which means that the order's status (Filled/Canceled)
-                # made it not amendable.
-                # If that happens, we need to catch it and re-tick.
-                try:
-                    self.exchange.amend_bulk_orders(to_amend)
-                except requests.exceptions.HTTPError as e:
-                    errorObj = e.response.json()
-                    if errorObj['error']['message'] == 'Invalid ordStatus':
-                        logger.warn("Amending failed. Waiting for order data to converge and retrying.")
-                        sleep(0.5)
-                        return self.place_orders()
-                    else:
-                        logger.error("Unknown error on amend: %s. Exiting" % errorObj)
-                        sys.exit(1)
-        elif len(existing_orders) == 1:
-            for order in existing_orders:
-                side = "Buy" if order['side'] == "Sell" else "Sell"
-                price = buyprice if order['side'] == "Sell" else sellprice
-                neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side }
-                to_create.append(neworder)
-        else:
-            #cancel existing orders and create new ones
-            logger.info("Length of existing orders: %d" % (len(existing_orders)))
-            self.exchange.cancel_all_orders()
-            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy" }
-            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell" }
-            to_create.append(buyorder)
-            to_create.append(sellorder)
-
-        if len(to_create) > 0:
-            logger.info("Creating %d orders:" % (len(to_create)))
-            #compare_logger.info("Creating %d orders:" % (len(to_create)))
-            for order in reversed(to_create):
-                logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-                #compare_logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-            self.exchange.create_bulk_orders(to_create)
-
+        self.prices_to_orders(self, buyprice, sellprice)
 
 def run() -> None:
     order_manager = CustomOrderManager()

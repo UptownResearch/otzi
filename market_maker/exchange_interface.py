@@ -34,10 +34,12 @@ compare_logger = logging.getLogger("paperless")
 class ExchangeInterface:
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
-        if len(sys.argv) > 1:
-            self.symbol = sys.argv[1]
-        else:
-            self.symbol = settings.SYMBOL
+        # let's only use the symbol from the settings
+        #if len(sys.argv) > 1:
+        #    self.symbol = sys.argv[1]
+        #else:
+        #    self.symbol = settings.SYMBOL
+        self.symbol = settings.SYMBOL
         if settings.BACKTEST:
             self.bitmex = BitMEXbacktest(base_url=settings.BASE_URL, symbol=self.symbol,
                                     apiKey=settings.API_KEY, apiSecret=settings.API_SECRET,
