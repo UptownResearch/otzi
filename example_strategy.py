@@ -16,7 +16,16 @@ import logging
 # create file handler which logs even debug messages
 if settings.ROOT_LOG:
     import datetime
-    file_location = settings.ROOT_LOG_LOCATION + f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+    if settings.OUTPUT_FILENAME:
+        outfilename = settings.OUTPUT_FILENAME
+    else:
+        outfilename = f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+    if settings.BACKTEST:
+        directory = "backtest/"
+    else:
+        directory = ""
+
+    file_location = settings.ROOT_LOG_LOCATION + directory + outfilename
     fh = logging.FileHandler(file_location, mode='a')
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
     fh.setLevel(logging.DEBUG)

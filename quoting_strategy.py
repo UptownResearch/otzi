@@ -15,7 +15,17 @@ import logging
 # create file handler which logs even debug messages
 if settings.ROOT_LOG:
     import datetime
-    file_location = settings.ROOT_LOG_LOCATION + f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+
+    if settings.OUTPUT_FILENAME:
+        outfilename = settings.OUTPUT_FILENAME
+    else:
+        outfilename = f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+    if settings.BACKTEST:
+        directory = "backtest/"
+    else:
+        directory = ""
+
+    file_location = settings.ROOT_LOG_LOCATION + directory + outfilename
     fh = logging.FileHandler(file_location, mode='a')
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
     fh.setLevel(logging.DEBUG)
@@ -134,7 +144,7 @@ class CustomOrderManager(OrderManager):
         #self.get_ticker()
         buyprice = math.toNearest(self.start_position_buy, self.instrument['tickSize'])
         sellprice = math.toNearest(self.start_position_sell, self.instrument['tickSize'])
-        self.prices_to_orders(self, buyprice, sellprice)
+        self.prices_to_orders(buyprice, sellprice)
 
 def run() -> None:
     order_manager = CustomOrderManager()

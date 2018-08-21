@@ -13,9 +13,16 @@ pt_logger = logging.getLogger("paperless_orders")
 pt_logger.setLevel(logging.INFO)
 
 if settings.LOG_ORDERS_TO_FILE: 
-    order_file = settings.ROOT_LOG_LOCATION + "pt_orders/" + \
-                ('p' if settings.paperless else "") + \
-                f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+    if settings.OUTPUT_FILENAME:
+        outfilename = settings.OUTPUT_FILENAME
+    else:
+        outfilename = f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+    if settings.BACKTEST:
+        directory = "backtest/"
+    else:
+        directory = ""
+
+    order_file = settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + outfilename           
     ofh = logging.FileHandler(order_file)
     simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
     ofh.setFormatter(simple_formatter)

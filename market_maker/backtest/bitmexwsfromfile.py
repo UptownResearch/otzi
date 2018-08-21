@@ -71,9 +71,9 @@ class BitMEXwsFromFile():
         #urlParts[2] = "/realtime?subscribe=" + ",".join(subscriptions)
         #wsURL = urlunparse(urlParts)
         wsURL=""
-        self.logger.info("Connecting to %s" % wsURL)
+        #self.logger.info("Connecting to %s" % wsURL)
         self.__connect(wsURL)
-        self.logger.info('Connected to WS. Waiting for data images, this may take a moment...')
+        #self.logger.info('Connected to WS. Waiting for data images, this may take a moment...')
 
         #Open the log file
         self.logger.info("Opening File: %s" % settings.WS_LOG_FILE)
@@ -85,14 +85,10 @@ class BitMEXwsFromFile():
         self.recorded_action_time = self.increment_timestep()
         while not {'instrument', 'trade', 'quote'} <= set(self.data):
             self.last_action = self.increment_timestep()
-        print("symbol acquired")
         
         while not {'margin', 'position', 'order'} <= set(self.data):
             self.last_action = self.increment_timestep()
-        
-        print("authorization acquired")
-        
-        
+           
         # Connected. Wait for partials
         #self.__wait_for_symbol(symbol)
         #if self.shouldAuth:
@@ -211,7 +207,7 @@ class BitMEXwsFromFile():
         #                                 header=self.__get_auth()
         #                                 )
 
-        setup_custom_logger('websocket', log_level=settings.LOG_LEVEL)
+        #setup_custom_logger('websocket', log_level=settings.LOG_LEVEL)
         #self.wst = threading.Thread(target=lambda: self.ws.run_forever(sslopt=sslopt_ca_certs))
         #self.wst.daemon = True
         #self.wst.start()
