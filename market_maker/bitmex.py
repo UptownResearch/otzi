@@ -25,8 +25,6 @@ if settings.LOG_ORDERS_TO_FILE:
     ofh.setFormatter(simple_formatter)
     order_logger.addHandler(ofh)
 
-
-
 # https://www.bitmex.com/api/explorer/
 class BitMEX(object):
 

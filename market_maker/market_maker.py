@@ -49,6 +49,7 @@ class ExchangeInterface:
                                     apiKey=settings.API_KEY, apiSecret=settings.API_SECRET,
                                     orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
                                     timeout=settings.TIMEOUT)
+        self.orderIDPrefix=settings.ORDERID_PREFIX
 
     def cancel_order(self, order):
         if settings.compare is not True:
@@ -124,7 +125,6 @@ class ExchangeInterface:
             # In certain cases, a WS update might not make it through before we call this.
             # For that reason, we grab via HTTP to ensure we grab them all.
             orders = self.bitmex.http_open_orders()
-
             for order in orders:
                 logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
 
@@ -312,6 +312,7 @@ class ExchangeInterface:
             ppl_tracker.amend_bulk_orders(temp_orders)
             return temp_orders
 
+
     def create_bulk_orders(self, orders):
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
@@ -327,10 +328,10 @@ class ExchangeInterface:
             return self.bitmex.create_bulk_orders(orders)
         else:
             ppl_tracker = paperless_tracker.paperless_tracker.getInstance()
-
             temp_orders = self.bitmex.create_bulk_orders(orders)
             ppl_tracker.track_orders_created(temp_orders)
             return temp_orders
+
 
     def cancel_bulk_orders(self, orders):
         if settings.compare is not True:
@@ -772,7 +773,7 @@ def run():
 
 class CustomOrderManager(OrderManager):
     """A sample order manager for implementing your own custom strategy"""
-    onlyone = 0
+    onlyone = True
     def place_orders(self) -> None:
         # implement your custom strategy here
 
@@ -783,13 +784,10 @@ class CustomOrderManager(OrderManager):
         ticker = self.exchange.get_ticker()
         mid = ticker["mid"]
         # populate buy and sell orders, e.g.
-        if self.onlyone == 0:
-            buy_orders.append({'price': 5000, 'orderQty': 1000, 'side': "Buy"})
-
-
-        if self.onlyone == 1:
-            buy_orders.append({'price': 5000, 'orderQty': 500, 'side': "Buy"})
-        self.onlyone += 1
+        if self.onlyone:
+            buy_orders.append({'price': mid + 1, 'orderQty': 1000, 'side': "Buy"})
+            sell_orders.append({'price': mid - 1, 'orderQty': 500, 'side': "Sell"})
+            self.onlyone = False
 
         self.converge_orders(buy_orders, sell_orders)
 

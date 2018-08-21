@@ -22,10 +22,6 @@ if settings.LOG_ORDERS_TO_FILE:
     pt_logger.addHandler(ofh)
 
 
-
-
-
-
 class paperless_tracker:
 
     __instance = None
@@ -54,6 +50,7 @@ class paperless_tracker:
             self.auxFunds = 0
             self.position = self.position = {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': "XBTUSD"}
             paperless_tracker.__instance = self
+
 
     def track_orders_created(self, orders):
 
@@ -639,6 +636,7 @@ class paperless_tracker:
                             self.track_orders_created(aux_orders)
                             self.insert_to_log("Order Amended - ID:" + str(order["orderID"]) + " " + order["side"] + " " + str(order["orderQty"]))
                             break
+
 
 
 
