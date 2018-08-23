@@ -418,5 +418,8 @@ class ExchangeInterface:
             pp_tracker.loop_functions()
         (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
             self.bitmex.rate_limits()
-        self.bitmex.wait_update()
+        try:
+            self.bitmex.wait_update()
+        except:
+            raise
         return True
