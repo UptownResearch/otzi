@@ -483,7 +483,11 @@ class OrderManager:
             self.print_status()
 
         while True:
-            self.exchange.wait_update()
+            try:
+                self.exchange.wait_update()
+            except EOFError:
+                logger.info("Reached end of Backtest file.")
+                break
             if self.exchange.ok_to_enter_order():
 
 

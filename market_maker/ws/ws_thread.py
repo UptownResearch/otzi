@@ -250,11 +250,10 @@ class BitMEXWebsocket():
         self.ws.send(json.dumps({"op": command, "args": args or []}))
 
     def __on_message(self, ws, message):
+        
+        self.messagelogger.info(message)
         '''Handler for parsing WS messages.'''
         message = json.loads(message)
-        #self.logger.debug(json.dumps(message))
-        self.messagelogger.info(message)
-
         table = message['table'] if 'table' in message else None
         action = message['action'] if 'action' in message else None
         try:

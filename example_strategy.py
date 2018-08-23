@@ -29,7 +29,7 @@ if settings.ROOT_LOG:
     fh = logging.FileHandler(file_location, mode='a')
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
     if settings.ROOT_LOG_LEVEL:
-        fh.setLevel(ROOT_LOG_LEVEL)
+        fh.setLevel(settings.ROOT_LOG_LEVEL)
     else:
         fh.setLevel(logging.WARN)
 
