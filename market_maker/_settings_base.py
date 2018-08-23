@@ -113,11 +113,14 @@ WATCHED_FILES = [join('market_maker', 'market_maker.py'), join('market_maker', '
 # Logging
 ########################################################################################################################
 
-# Available levels: logging.(DEBUG|INFO|WARN|ERROR)
+# Root Stream levels: logging.(DEBUG|INFO|WARN|ERROR)
 LOG_LEVEL = logging.INFO
 
 #Log everything?
 ROOT_LOG = True
+
+#Control the root log level 
+ROOT_LOG_LEVEL = logging.INFO
 
 #Log Orders to FIle? 
 LOG_ORDERS_TO_FILE = True

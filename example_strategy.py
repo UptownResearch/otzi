@@ -28,7 +28,11 @@ if settings.ROOT_LOG:
     file_location = settings.ROOT_LOG_LOCATION + directory + outfilename
     fh = logging.FileHandler(file_location, mode='a')
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-    fh.setLevel(logging.WARN)
+    if settings.ROOT_LOG_LEVEL:
+        fh.setLevel(ROOT_LOG_LEVEL)
+    else:
+        fh.setLevel(logging.WARN)
+
     fh.setFormatter(formatter)
     rootlogger = logging.getLogger("root")
     rootlogger.addHandler(fh)
