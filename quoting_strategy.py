@@ -36,8 +36,20 @@ if settings.ROOT_LOG:
     level = logging.getLogger().getEffectiveLevel()
     rootlogger.info('Root at level %s - Logging to file: %s' % (level, file_location))
 
-
-
+if settings.LOG_WEBSOCKET:
+    if settings.OUTPUT_FILENAME:
+        outfilename = settings.OUTPUT_FILENAME
+    else:
+        outfilename = f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"    
+    wsfile_location = settings.ROOT_LOG_LOCATION + "/websockets/" + outfilename
+    wsfh = logging.FileHandler(wsfile_location, mode='a')
+    formatter = logging.Formatter(fmt='%(asctime)s - %(message)s')
+    wsfh.setLevel(logging.DEBUG)
+    wsfh.setFormatter(formatter)
+    messagelogger = logging.getLogger('bitmex_ws')
+    messagelogger.addHandler(fh)
+    messagelogger.setLevel(logging.DEBUG)
+ 
 class CustomOrderManager(OrderManager):
     """A sample order manager for implementing your own custom strategy"""
 

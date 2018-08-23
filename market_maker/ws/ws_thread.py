@@ -37,6 +37,7 @@ class BitMEXWebsocket():
 
     def __init__(self):
         self.logger = logging.getLogger('root')
+        self.messagelogger = logging.getLogger('bitmex_ws')
         self.__reset()
         self.ordersreturned = None 
         self.last_action = None
@@ -251,7 +252,8 @@ class BitMEXWebsocket():
     def __on_message(self, ws, message):
         '''Handler for parsing WS messages.'''
         message = json.loads(message)
-        self.logger.debug(json.dumps(message))
+        #self.logger.debug(json.dumps(message))
+        self.messagelogger.debug(json.dumps(message))
 
         table = message['table'] if 'table' in message else None
         action = message['action'] if 'action' in message else None

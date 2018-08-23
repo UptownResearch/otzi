@@ -226,12 +226,14 @@ class OrderManager:
         to_create = []
         existing_orders = self.exchange.get_orders()
         buy_present = sell_present = False
+        ticker = self.exchange.get_ticker()
+        midprice = ticker["mid"]
         if len(existing_orders) > 1:
             for order in existing_orders:
                 if order['side'] == "Buy":
                     if order['price'] != buyprice:                     
                         neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE,
-                                        'price': buyprice, 'side': "Buy"}
+                                        'price': buyprice, 'side': "Buy", 'theo': midprice}
                         if not buy_present:     
                             buy_present = True
                             to_amend.append(neworder)
@@ -245,7 +247,7 @@ class OrderManager:
                 else:
                     if order['price'] != sellprice:
                         neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE, 
-                                        'price':  sellprice, 'side': "Sell" }
+                                        'price':  sellprice, 'side': "Sell" , 'theo': midprice}
                         if not sell_present:     
                             sell_present = True
                             to_amend.append(neworder)
@@ -284,14 +286,14 @@ class OrderManager:
             for order in existing_orders:
                 side = "Buy" if order['side'] == "Sell" else "Sell"
                 price = buyprice if order['side'] == "Sell" else sellprice
-                neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side }
+                neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side, 'theo': midprice }
                 to_create.append(neworder)
         else:
             #cancel existing orders and create new ones
             logger.info("Length of existing orders: %d" % (len(existing_orders)))
             self.exchange.cancel_all_orders()
-            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy" }
-            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell" }
+            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy", 'theo': midprice }
+            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell", 'theo': midprice }
             to_create.append(buyorder)
             to_create.append(sellorder)
 

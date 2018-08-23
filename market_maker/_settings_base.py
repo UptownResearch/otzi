@@ -125,6 +125,9 @@ ROOT_LOG_LEVEL = logging.INFO
 #Log Orders to FIle? 
 LOG_ORDERS_TO_FILE = True
 
+#Log Websocket?
+LOG_WEBSOCKET = True
+
 #Where should the Root log go? 
 import os
 ROOT_LOG_LOCATION = os.path.expanduser("~") + "/log/smm/"
