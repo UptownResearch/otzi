@@ -47,9 +47,9 @@ if settings.LOG_WEBSOCKET:
     wsfh.setLevel(logging.DEBUG)
     wsfh.setFormatter(formatter)
     messagelogger = logging.getLogger('bitmex_ws')
-    messagelogger.addHandler(fh)
+    messagelogger.addHandler(wsfh)
     messagelogger.setLevel(logging.DEBUG)
- 
+
 class CustomOrderManager(OrderManager):
     """A sample order manager for implementing your own custom strategy"""
 
