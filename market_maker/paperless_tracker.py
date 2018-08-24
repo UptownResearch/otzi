@@ -7,6 +7,7 @@ import datetime
 import random
 import logging
 import json
+import iso8601
 
 #log orders to file
 pt_logger = logging.getLogger("paperless_orders")
@@ -81,13 +82,6 @@ class paperless_tracker:
                 buy_orders.append(copy.deepcopy(orders))
             else:
                 sell_orders.append(copy.deepcopy(orders))
-        '''
-        for order in buy_orders:
-            order["orderQty"] = order["orderQty"] / order["price"]
-
-        for order in sell_orders:
-            order["orderQty"] = order["orderQty"] / order["price"]
-        '''
 
         if len(buy_orders) > 0:
             self.buy_orders_created.extend(buy_orders)
@@ -98,58 +92,37 @@ class paperless_tracker:
 
         ask = []
         bid = []
+        order_table = {} 
         for orders in order_book:
+            order_table[orders['price']] = orders
             if orders['side'] == "Sell":
                 ask.append(orders)
             else:
                 bid.append(orders)
 
-        '''
-        for orders in buy_orders:
-            self.random_base += 1
-            orders["orderID"] = self.random_base
-            orders["cumQty"] = orders["orderQty"]
-            self.calculate_position(orders, orders["cumQty"])
-            orders["leavesQty"] = 0
-            self.filled.append(orders)
+        # let's not do market orders during backtests
+        # send all orders to partially filled list
+        if settings.BACKTEST:
+            for orders in buy_orders:
+                self.random_base += 1
+                orders["orderID"] = self.random_base
+                orders["cumQty"] = 0
+                orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+                default_level = {'size':0}
+                orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+                orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+                self.buy_partially_filled.append(orders)
 
-        for orders in sell_orders:
-            self.random_base += 1
-            orders["orderID"] = self.random_base
-            orders["cumQty"] = orders["orderQty"]
-            self.calculate_position(orders, orders["cumQty"])
-            orders["leavesQty"] = 0
-            self.filled.append(orders)
-
-
-        orde = {}
-        orde["orderQty"] = 3500 / 7000
-        orde["cumQty"] = 3500 / 7000
-        orde["leavesQty"] = order["orderQty"] - order["cumQty"]
-        orde["orderID"] = 250
-        orde["price"] = 7000
-        orde["side"] = "Buy"
-        self.filled.append(orde)
-
-        orde = {}
-        orde["orderQty"] = 3000 / 6000
-        orde["cumQty"] = 3000 / 6000
-        orde["leavesQty"] = order["orderQty"] - order["cumQty"]
-        orde["orderID"] = 251
-        orde["price"] = 6000
-        orde["side"] = "Buy"
-        self.filled.append(orde)
-
-        orde = {}
-        orde["orderQty"] = 5000 / 5000
-        orde["cumQty"] = 5000 / 5000
-        orde["leavesQty"] = order["orderQty"] - order["cumQty"]
-        orde["orderID"] = 251
-        orde["price"] = 5000
-        orde["side"] = "Sell"
-        self.filled.append(orde)
-        return 0
-        '''
+            for orders in sell_orders:
+                self.random_base += 1
+                orders["orderID"] = self.random_base
+                orders["cumQty"] = 0
+                orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+                default_level = {'size':0}
+                orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+                orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+                self.sell_partially_filled.append(orders)
+            return
 
         for orders in buy_orders:
             self.random_base += 1
@@ -196,6 +169,9 @@ class paperless_tracker:
                         pt_logger.info(json.dumps(order_out))
                         break
             else:
+                default_level = {'size':0}
+                orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+                orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 self.buy_partially_filled.append(orders)
                 #self.insert_to_log("Order Created - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
 
@@ -245,9 +221,106 @@ class paperless_tracker:
                         pt_logger.info(json.dumps(order_out))
                         break
             else:
+                default_level = {'size':0}
+                orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+                orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 self.sell_partially_filled.append(orders)
                 #self.insert_to_log("Order Created - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
+    
+    def _fill_orders_queued(self, all_orders, filtered_trades):
+        for order in all_orders:
+            orignal_size = order["orderQty"]
+            for temp in filtered_trades:
+                at_match_price =  order["price"] >= temp["price"] \
+                                    if order['side'] is 'Buy' else \
+                                    order["price"] <= temp["price"]
+                if at_match_price and temp["size"] > 0:
+                    #comment out the following if statement to remove queued ordering
+                    past_match_price =  order["price"] > temp["price"] \
+                                        if order['side'] is 'Buy' else \
+                                         order["price"] < temp["price"]
+                    # if real data has moved past our level, assume queue is empty
+                    # this assumption works best if we have small orders
+                    if past_match_price:
+                        order['remaining_at_level'] = 0
+                    if order['remaining_at_level'] - temp["size"] > 0:
+                        order['remaining_at_level'] = order['remaining_at_level'] - temp["size"]
+                        continue
+                    if (orignal_size - order["cumQty"]) >= temp["size"]:
+                        #only partially fill order
+                        order["orderQty"] = orignal_size
+                        order["cumQty"] = order["cumQty"] + temp["size"]
+                        self.calculate_position(order, temp["size"])
+                        order["leavesQty"] = order["orderQty"] - order["cumQty"]
+                        self.timestamp = temp["timestamp"]
+                        order['timestamp'] = self.exchange.current_timestamp().isoformat()
+                        order_out = {
+                        'status' : 'Partially Filled',
+                        'paperless' : settings.paperless,
+                        'type' : 'Paper',
+                        'agress' : False,
+                        'fillprice' : temp["price"],
+                        'fillsize' : temp["size"], 
+                        'match_order_timestamp': temp["timestamp"],
+                        'data' : order
+                        }
+                        pt_logger.info(json.dumps(order_out))
+                        temp["size"] = 0
+                    else:
+                        #fully fill order
+                        temp["size"] = temp["size"] - (orignal_size - order["cumQty"])
+                        self.calculate_position(order, (order["orderQty"] - order["cumQty"]))
+                        order["orderQty"] = orignal_size
+                        order["cumQty"] = orignal_size
+                        order["leavesQty"] = 0
+                        self.timestamp = temp["timestamp"]
+                        order['timestamp'] = self.exchange.current_timestamp().isoformat()
+                        order_out = {
+                        'status' : 'Filled',
+                        'paperless' : settings.paperless,
+                        'type' : 'Paper',
+                        'agress' : False,
+                        'fillprice' : temp["price"],
+                        'fillsize' : order["orderQty"] - order["cumQty"], 
+                        'match_order_timestamp': temp["timestamp"],
+                        'data' : order
+                        }
+                        pt_logger.info(json.dumps(order_out))
+                        break
+    
+    
+    def simulate_fills_from_trades(self):
+        '''Tracks fills based on market trades. (Replaces track_orders.)'''
+        if settings.paperless == False:
+            return None
+        
+        trades = self.exchange.recent_trades()
+        #self.timestamp = self.exchange.current_timestamp()
+        #get only new trades to check
+        new_trades = []
+        sell = []
+        buy = []
+        filtered_trades = []
+        for trade in trades:
+            trade_date = iso8601.parse_date(trade["timestamp"])
+            if self.timestamp == None or trade_date >= self.timestamp:
+                filtered_trades.append(trade)
+                #if trade['side'] == "Sell":
+                #    sell.append(trade)
+                #else:
+                #    buy.append(trade)
+        
+        self._fill_orders_queued(self.buy_partially_filled, filtered_trades)
+        self._fill_orders_queued(self.sell_partially_filled, filtered_trades)
+        #self._fill_orders(self.buy_partially_filled, filtered_trades)
+        #self._fill_orders(self.sell_partially_filled, filtered_trades)
+        
+        #use the timestamp from the last trade
+        self.timestamp = iso8601.parse_date(filtered_trades[-1]['timestamp'])
 
+        #Fill any orders that are completely filled
+        self.from_partially_to_filled()        
+        
     def track_orders(self):
 
         if settings.paperless == False:
@@ -382,121 +455,11 @@ class paperless_tracker:
                 deleted_ones += 1
 
     def get_funds(self):
-        '''
-        buy_average = 0
-        buy_quantity = 0
-
-        sell_average = 0
-        sell_quantity = 0
-
-        for order in self.closed:
-            if order["side"] == "Buy":
-                buy_average = buy_average + (order["orderQty"] * order["price"])
-                buy_quantity = buy_quantity + order["orderQty"]
-            else:
-                sell_average = sell_average + (order["orderQty"] * order["price"])
-                sell_quantity = sell_quantity + order["orderQty"]
-
-        if (buy_quantity > 0):
-            buy_average = buy_average / buy_quantity
-        else:
-            buy_average = 0
-
-        if (sell_quantity > 0):
-            sell_average = sell_average / sell_quantity
-        else:
-            sell_average = 0
-
-        funds = 0
-        if buy_quantity > 0:
-            funds = (sell_average - buy_average) * buy_quantity
-        if sell_quantity > 0:
-            funds = (sell_average - buy_average) * sell_quantity
-
-        ticker = self.exchange.get_ticker()
-        mid = ticker["mid"]
-        in_btc = funds / mid #Funds is in USD.
-        '''
 
         return {"marginBalance": (settings.DRY_BTC + self.auxFunds) * constants.XBt_TO_XBT}
 
     def get_position(self, symbol):
 
-        '''
-        buy_average = 0
-        buy_quantity = 0
-
-        sell_average = 0
-        sell_quantity = 0
-
-        for order in self.filled:
-            if order["side"] == "Buy":
-                buy_average = buy_average + (order["orderQty"] * order["price"])
-                buy_quantity = buy_quantity + (order["orderQty"] * order["price"])
-            else:
-                sell_average = sell_average + (order["orderQty"] * order["price"])
-                sell_quantity = sell_quantity + (order["orderQty"] * order["price"])
-
-        for order in self.buy_partially_filled:
-            buy_average = buy_average + (order[0]["orderQty"] * order[0]["price"])
-            buy_quantity = buy_quantity + (order[0]["orderQty"] * order[0]["price"])
-
-        for order in self.sell_partially_filled:
-            sell_average = sell_average + (order[0]["orderQty"] * order[0]["price"])
-            sell_quantity = sell_quantity + (order[0]["orderQty"] * order[0]["price"])
-
-        if (buy_quantity > 0):
-            buy_average = buy_average / buy_quantity
-        else:
-            buy_average = 0
-
-        if (sell_quantity > 0):
-            sell_average = sell_average / sell_quantity
-        else:
-            sell_average = 0
-
-        if buy_average == 0 and sell_average == 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
-        elif buy_average == 0 and sell_average > 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
-        elif buy_average > 0 and sell_average == 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
-        '''
-
-        '''
-        buy_quantity = 0
-        sell_quantity = 0
-        sumAux = 0
-
-        for orders in self.filled:
-            val = ((orders["orderQty"] * orders["price"]) / orders["price"])
-            sumAux += val
-            buy_quantity = buy_quantity + (orders["orderQty"] * orders["price"])
-
-        for orders in self.buy_partially_filled:
-            val = ((orders["cumQty"] * orders["price"]) / orders["price"])
-            sumAux += val
-            buy_quantity = buy_quantity + (orders["cumQty"] * orders["price"])
-
-        for orders in self.sell_partially_filled:
-            val = ((orders["cumQty"] * orders["price"]) / orders["price"])
-            sumAux += val
-            buy_quantity = buy_quantity + (orders["cumQty"] * orders["price"])
-
-        new_qty = buy_quantity + sell_quantity
-        if new_qty == 0:
-            return {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': symbol}
-        #X2 = sell_average - (buy_quantity * ((sell_average - buy_average) / new_qty))
-        #total_quantity / ((quantity_1 / price_1) + (quantity_2 / price_2)) = entry_price
-
-        X2 = new_qty / sumAux
-
-        if new_qty > 0:
-            return {'avgCostPrice': X2, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
-
-        elif new_qty < 0:
-            return {'avgCostPrice': X2, 'avgEntryPrice': X2, 'currentQty': new_qty, 'symbol': symbol}
-        '''
         self.position["symbol"] = symbol
         return self.position
 
@@ -550,7 +513,8 @@ class paperless_tracker:
         if settings.paperless == False:
             return None
 
-        self.track_orders()
+        #self.track_orders()
+        self.simulate_fills_from_trades()
         self.close_positions()
 
     def current_contract(self):
