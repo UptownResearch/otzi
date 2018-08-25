@@ -241,14 +241,14 @@ class paperless_tracker:
                                          order["price"] < temp["price"]
                     # if real data has moved past our level, assume queue is empty
                     # this assumption works best if we have small orders
-                    if past_match_price:
-                        order['remaining_at_level'] = 0
-                    if order['remaining_at_level'] - temp["size"] > 0:
-                        order['remaining_at_level'] = order['remaining_at_level'] - temp["size"]
-                        continue
+                    if not past_match_price:
+                        if order['remaining_at_level'] - temp["size"] > 0:
+                            order['remaining_at_level'] = order['remaining_at_level'] - temp["size"]
+                            continue
                     if (orignal_size - order["cumQty"]) >= temp["size"]:
                         #only partially fill order
                         order["orderQty"] = orignal_size
+                        filled_size = temp["size"]
                         order["cumQty"] = order["cumQty"] + temp["size"]
                         self.calculate_position(order, temp["size"])
                         order["leavesQty"] = order["orderQty"] - order["cumQty"]
@@ -260,7 +260,7 @@ class paperless_tracker:
                         'type' : 'Paper',
                         'agress' : False,
                         'fillprice' : temp["price"],
-                        'fillsize' : temp["size"], 
+                        'fillsize' : filled_size, 
                         'match_order_timestamp': temp["timestamp"],
                         'data' : order
                         }
@@ -269,6 +269,7 @@ class paperless_tracker:
                     else:
                         #fully fill order
                         temp["size"] = temp["size"] - (orignal_size - order["cumQty"])
+                        filled_size = orignal_size - order["cumQty"]
                         self.calculate_position(order, (order["orderQty"] - order["cumQty"]))
                         order["orderQty"] = orignal_size
                         order["cumQty"] = orignal_size
@@ -281,7 +282,7 @@ class paperless_tracker:
                         'type' : 'Paper',
                         'agress' : False,
                         'fillprice' : temp["price"],
-                        'fillsize' : order["orderQty"] - order["cumQty"], 
+                        'fillsize' : filled_size, 
                         'match_order_timestamp': temp["timestamp"],
                         'data' : order
                         }
@@ -309,7 +310,9 @@ class paperless_tracker:
                 #    sell.append(trade)
                 #else:
                 #    buy.append(trade)
-        
+        if len(filtered_trades)==0:
+            return
+
         self._fill_orders_queued(self.buy_partially_filled, filtered_trades)
         self._fill_orders_queued(self.sell_partially_filled, filtered_trades)
         #self._fill_orders(self.buy_partially_filled, filtered_trades)

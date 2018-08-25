@@ -228,7 +228,7 @@ class OrderManager:
         buy_present = sell_present = False
         ticker = self.exchange.get_ticker()
         last_price = self.exchange.recent_trades()[-1]['price']
-        midprice = ticker["mid"]
+        midprice = last_price #ticker["mid"]
         if len(existing_orders) > 1:
             for order in existing_orders:
                 if order['side'] == "Buy":
