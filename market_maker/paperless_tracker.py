@@ -29,6 +29,12 @@ if settings.LOG_ORDERS_TO_FILE:
     ofh.setFormatter(simple_formatter)
     pt_logger.addHandler(ofh)
 
+def close_log_files():
+    handlers = pt_logger.handlers[:]
+    for handler in handlers:
+        handler.close()
+        pt_logger.removeHandler(handler)
+
 
 class paperless_tracker:
 

@@ -77,7 +77,6 @@ class BitMEXwsFromFile():
 
         #Open the log file
         self.logger.info("Opening File: %s" % settings.WS_LOG_FILE)
-        print(vars(settings))
         self.lines = open(settings.WS_LOG_FILE, 'r').readlines()
         self.currentline = 0 
 

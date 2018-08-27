@@ -4,7 +4,6 @@ from time import sleep
 
 from market_maker.market_maker import OrderManager, logger 
 from market_maker.settings import settings
-print(settings.__file__)
 from market_maker.utils import log, constants, errors, math
 
 #

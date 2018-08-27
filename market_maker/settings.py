@@ -48,7 +48,6 @@ path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
 settings_file_location = os.path.join(dir_path , 'settings.json')
 override_settings = {}
-print(settings_file_location)
 if os.path.exists(settings_file_location):
     with open(settings_file_location, 'r') as settings_file:
         override_settings = json.load(settings_file)
