@@ -38,7 +38,7 @@ compare_logger.setLevel(logging.WARN)
 #compare_logger.addHandler(fh)
 
 class OrderManager:
-    def __init__(self):
+    def __init__(self, orders_logging_file = None):
         self.exchange = ExchangeInterface(settings.DRY_RUN)
         # Once exchange is created, register exit handler that will always cancel orders
         # on any error.
@@ -61,6 +61,42 @@ class OrderManager:
             self.starting_qty = self.exchange.get_delta()
         self.running_qty = self.starting_qty
         self.reset()
+
+        self.pt_logger = logging.getLogger("paperless_orders")
+        self.pt_logger.setLevel(logging.INFO)  
+        if orders_logging_file is None:
+            if settings.LOG_ORDERS_TO_FILE: 
+                if settings.OUTPUT_FILENAME:
+                    outfilename = settings.OUTPUT_FILENAME
+                else:
+                    outfilename = f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+                if settings.BACKTEST:
+                    directory = "backtest/"
+                else:
+                    directory = ""
+
+                order_file = settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + outfilename           
+                ofh = logging.FileHandler(order_file)
+                simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
+                ofh.setFormatter(simple_formatter)
+                self.pt_logger.addHandler(ofh)
+        else:
+            if settings.BACKTEST:
+                directory = "backtest/"
+            else:
+                directory = ""
+
+            order_file = settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + orders_logging_file           
+            ofh = logging.FileHandler(order_file)
+            simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
+            ofh.setFormatter(simple_formatter)
+            self.pt_logger.addHandler(ofh)
+
+    def close_log_files(self):
+        handlers = self.pt_logger.handlers[:]
+        for handler in handlers:
+            handler.close()
+            self.pt_logger.removeHandler(handler)
 
     def reset(self):
         self.exchange.cancel_all_orders()
@@ -487,6 +523,7 @@ class OrderManager:
             try:
                 self.exchange.wait_update()
             except EOFError:
+                self.close_log_files()
                 logger.info("Reached end of Backtest file.")
                 break
             if self.exchange.ok_to_enter_order():

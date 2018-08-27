@@ -421,7 +421,6 @@ class ExchangeInterface:
         try:
             self.bitmex.wait_update()
         except EOFError:
-            paperless_tracker.close_log_files()
             raise
         except:
             print("Unknown Error occurred while running.")

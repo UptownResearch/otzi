@@ -13,27 +13,6 @@ import iso8601
 pt_logger = logging.getLogger("paperless_orders")
 pt_logger.setLevel(logging.INFO)
 
-if settings.LOG_ORDERS_TO_FILE: 
-    if settings.OUTPUT_FILENAME:
-        outfilename = settings.OUTPUT_FILENAME
-    else:
-        outfilename = f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
-    if settings.BACKTEST:
-        directory = "backtest/"
-    else:
-        directory = ""
-
-    order_file = settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + outfilename           
-    ofh = logging.FileHandler(order_file)
-    simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
-    ofh.setFormatter(simple_formatter)
-    pt_logger.addHandler(ofh)
-
-def close_log_files():
-    handlers = pt_logger.handlers[:]
-    for handler in handlers:
-        handler.close()
-        pt_logger.removeHandler(handler)
 
 
 class paperless_tracker:

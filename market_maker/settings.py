@@ -44,24 +44,29 @@ class AutoVar(object):
         self.__dict__ = data
 
 
-path = os.path.abspath(__file__)
-dir_path = os.path.dirname(path)
-settings_file_location = os.path.join(dir_path , 'settings.json')
-override_settings = {}
-if os.path.exists(settings_file_location):
-    with open(settings_file_location, 'r') as settings_file:
-        override_settings = json.load(settings_file)
-override_settings = AutoVar(override_settings)
-#print(override_settings)
+def create_settings():
+    path = os.path.abspath(__file__)
+    dir_path = os.path.dirname(path)
+    settings_file_location = os.path.join(dir_path , 'settings.json')
+    override_settings = {}
+    if os.path.exists(settings_file_location):
+        with open(settings_file_location, 'r') as settings_file:
+            override_settings = json.load(settings_file)
+    override_settings = AutoVar(override_settings)
+    #print(override_settings)
 
 
-# Assemble settings.
-settings = {}
-settings.update(vars(baseSettings))
-#settings.update(vars(userSettings))
-settings.update(vars(override_settings))
-#if symbolSettings:
-#    settings.update(vars(symbolSettings))
+    # Assemble settings.
+    asettings = {}
+    asettings.update(vars(baseSettings))
+    #settings.update(vars(userSettings))
+    asettings.update(vars(override_settings))
+    #if symbolSettings:
+    #    settings.update(vars(symbolSettings))
 
-# Main export
-settings = dotdict(settings)
+    # Main export
+    asettings = dotdict(asettings)
+    return asettings 
+
+
+settings = create_settings()
