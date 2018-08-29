@@ -45,6 +45,20 @@ class paperless_tracker:
             paperless_tracker.__instance = self
             self.symbol = settings.SYMBOL
 
+    def reset(self):
+        self.buy_orders_created = []
+        self.sell_orders_created = []
+        self.filled = []
+        self.buy_partially_filled = []
+        self.sell_partially_filled = []
+        self.closed = []
+        self.random_base = random.randint(0, 100000)
+        #self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
+        self.timestamp = None
+        self.auxFunds = 0
+        self.position = self.position = {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': "XBTUSD"}
+        self.symbol = settings.SYMBOL
+
     def provide_exchange(self, exchange):
         self.exchange = exchange
 

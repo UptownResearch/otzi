@@ -13,6 +13,7 @@ import uuid
 
 from market_maker import bitmex
 from market_maker.settings import settings
+print(settings.__file__)
 from market_maker.utils import log, constants, errors, math
 from market_maker import paperless_tracker
 
@@ -53,6 +54,7 @@ class ExchangeInterface:
         if settings.paperless:
             pp_tracker = paperless_tracker.paperless_tracker.getInstance()
             pp_tracker.provide_exchange(self.bitmex)
+            pp_tracker.reset()
         self.orderIDPrefix=settings.ORDERID_PREFIX
         self.rate_limit  = 1
         self.rate_limit_remaining = 0
