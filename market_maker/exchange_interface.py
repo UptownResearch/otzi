@@ -307,7 +307,7 @@ class ExchangeInterface:
             raise errors.MarketEmptyError("Orderbook is empty, cannot quote")
 
     def amend_bulk_orders(self, orders):
-        self.last_order_time = self.bitmex.current_timestamp().timestamp() 
+        self.last_order_time = self._current_timestamp() 
         if settings.paperless:
             pp_tracker = paperless_tracker.paperless_tracker.getInstance()
             pp_tracker.cancel_all_orders()
@@ -326,7 +326,7 @@ class ExchangeInterface:
             return self.bitmex.amend_bulk_orders(orders), orders
 
     def create_bulk_orders(self, orders):
-        self.last_order_time = self.bitmex.current_timestamp().timestamp() 
+        self.last_order_time = self._current_timestamp() 
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
         if settings.compare is not True:
@@ -346,7 +346,7 @@ class ExchangeInterface:
             return self.bitmex.create_bulk_orders(orders)
 
     def cancel_bulk_orders(self, orders):
-        self.last_order_time = self.bitmex.current_timestamp().timestamp() 
+        self.last_order_time = self._current_timestamp() 
         if settings.compare is not True:
             if self.dry_run and settings.paperless == False:
                 return orders
@@ -379,17 +379,21 @@ class ExchangeInterface:
 
         return 0
 
+    def _current_timestamp():
+        return self.bitmex.current_timestamp().replace(tzinfo=datetime.timezone.utc).timestamp()
+
     def ok_to_enter_order(self):
+        '''Used to rate limit the placement of orders.'''
         if self.last_order_time:
-            time_since_last = self.bitmex.current_timestamp().timestamp() - self.last_order_time 
+            time_since_last = self._current_timestamp() - self.last_order_time 
             # force a 1 second wait for now
             if time_since_last > max(self.current_api_call_timing(), 1):
-                self.last_order_time = self.bitmex.current_timestamp().timestamp() 
+                self.last_order_time = self._current_timestamp() 
                 return True
             else:
                 return False
         else:
-            self.last_order_time = self.bitmex.current_timestamp().timestamp() 
+            self.last_order_time = self._current_timestamp() 
             return True
 
 
@@ -400,9 +404,9 @@ class ExchangeInterface:
             return 1
         elif self.rate_limit_remaining < 1:
             # need to wait until reset time, it appears
-            return self.rate_limit_reset - self.bitmex.current_timestamp().timestamp() 
+            return self.rate_limit_reset - self._current_timestamp() 
         else:
-            time_till_reset = self.rate_limit_reset - self.bitmex.current_timestamp().timestamp()           
+            time_till_reset = self.rate_limit_reset - self._current_timestamp()           
             return  float(time_till_reset) / self.rate_limit_remaining
 
 
