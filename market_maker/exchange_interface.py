@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from time import sleep
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from os.path import getmtime
 import random
 import requests
@@ -379,8 +379,8 @@ class ExchangeInterface:
 
         return 0
 
-    def _current_timestamp():
-        return self.bitmex.current_timestamp().replace(tzinfo=datetime.timezone.utc).timestamp()
+    def _current_timestamp(self):
+        return self.bitmex.current_timestamp().replace(tzinfo=timezone.utc).timestamp()
 
     def ok_to_enter_order(self):
         '''Used to rate limit the placement of orders.'''
