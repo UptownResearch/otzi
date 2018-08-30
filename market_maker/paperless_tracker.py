@@ -77,10 +77,10 @@ class paperless_tracker:
             'data' : orders
             }
             pt_logger.info(json.dumps(order_out))
-            if orders["side"] == "Buy":
-                buy_orders.append(copy.deepcopy(orders))
-            else:
-                sell_orders.append(copy.deepcopy(orders))
+            #if orders["side"] == "Buy":
+            #    buy_orders.append(copy.deepcopy(orders))
+            #else:
+            #    sell_orders.append(copy.deepcopy(orders))
 
         if len(buy_orders) > 0:
             self.buy_orders_created.extend(buy_orders)
@@ -128,6 +128,8 @@ class paperless_tracker:
             orders["orderID"] = self.random_base
             orders["cumQty"] = 0
             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+            orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+            orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
             for i in range(len(ask) - 1, -1, -1):
                 temp = ask[i]
                 if orders["price"] >= temp["price"] and temp["size"] > 0:
@@ -179,6 +181,8 @@ class paperless_tracker:
             orders["orderID"] = self.random_base
             orders["cumQty"] = 0
             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
+            orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
+            orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
             for i in range(0, len(bid)):
                 temp = bid[i]
                 if orders["price"] <= temp["price"] and temp["size"] > 0:
@@ -227,8 +231,12 @@ class paperless_tracker:
                 #self.insert_to_log("Order Created - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
     
     def _fill_orders_queued(self, all_orders, filtered_trades):
+        pt_logger.info(json.dumps(all_orders))
         for order in all_orders:
             orignal_size = order["orderQty"]
+            #don't fill more than once
+            if orignal_size - order["cumQty"] == 0:
+                continue
             for temp in filtered_trades:
                 at_match_price =  order["price"] >= temp["price"] \
                                     if order['side'] is 'Buy' else \
@@ -241,9 +249,12 @@ class paperless_tracker:
                     # if real data has moved past our level, assume queue is empty
                     # this assumption works best if we have small orders
                     if not past_match_price:
-                        if order['remaining_at_level'] - temp["size"] > 0:
+                        if order['remaining_at_level'] - temp["size"] >= 0:
                             order['remaining_at_level'] = order['remaining_at_level'] - temp["size"]
                             continue
+                        #only fill what isn't needed to clear the queue ahead of our order
+                        temp["size"] = temp["size"] - order['remaining_at_level']
+
                     if (orignal_size - order["cumQty"]) >= temp["size"]:
                         #only partially fill order
                         order["orderQty"] = orignal_size
@@ -311,7 +322,6 @@ class paperless_tracker:
                 #    buy.append(trade)
         if len(filtered_trades)==0:
             return
-
         self._fill_orders_queued(self.buy_partially_filled, filtered_trades)
         self._fill_orders_queued(self.sell_partially_filled, filtered_trades)
         #self._fill_orders(self.buy_partially_filled, filtered_trades)
@@ -321,7 +331,7 @@ class paperless_tracker:
         self.timestamp = iso8601.parse_date(filtered_trades[-1]['timestamp'])
 
         #Fill any orders that are completely filled
-        self.from_partially_to_filled()        
+        self.from_partially_to_filled2()        
         
     def track_orders(self):
 
@@ -455,6 +465,27 @@ class paperless_tracker:
                 self.filled.append(auxclone[i])
                 del self.sell_partially_filled[i - deleted_ones]
                 deleted_ones += 1
+
+    def from_partially_to_filled2(self):
+        buy_temp = []
+        for order in self.buy_partially_filled:
+            if order["orderQty"] == order["cumQty"]:
+                acopy = copy.deepcopy(order)
+                self.filled.append(acopy)
+            else:
+                buy_temp.append(order)
+        self.buy_partially_filled = buy_temp 
+        
+        sell_temp = []
+        for order in self.sell_partially_filled:
+            if order["orderQty"] == order["cumQty"]:
+                acopy = copy.deepcopy(order)
+                self.filled.append(acopy)
+            else:
+                sell_temp.append(order)
+        self.sell_partially_filled = sell_temp
+        
+    
 
     def get_funds(self):
 
