@@ -11,6 +11,13 @@ import json
 import base64
 import uuid
 
+# Find code directory relative to our directory
+from os.path import dirname, abspath, join
+import sys
+THIS_DIR = dirname(__file__)
+CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
+sys.path.append(CODE_DIR)
+
 from market_maker import bitmex
 from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math

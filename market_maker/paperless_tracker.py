@@ -1,13 +1,21 @@
 
-from market_maker.settings import settings
-#from market_maker import market_maker
-from market_maker.utils import constants
+
 import copy
 import datetime
 import random
 import logging
 import json
 import iso8601
+
+# Find code directory relative to our directory
+from os.path import dirname, abspath, join
+import sys
+THIS_DIR = dirname(__file__)
+CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
+sys.path.append(CODE_DIR)
+from market_maker.settings import settings
+#from market_maker import market_maker
+from market_maker.utils import constants
 
 #log orders to file
 pt_logger = logging.getLogger("paperless_orders")

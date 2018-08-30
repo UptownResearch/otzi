@@ -9,6 +9,13 @@ import decimal
 import logging
 import datetime
 
+# Find code directory relative to our directory
+from os.path import dirname, abspath, join
+import sys
+THIS_DIR = dirname(__file__)
+CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
+sys.path.append(CODE_DIR)
+
 from market_maker.settings import settings
 from market_maker.auth.APIKeyAuth import generate_nonce, generate_signature
 from market_maker.utils.log import setup_custom_logger
