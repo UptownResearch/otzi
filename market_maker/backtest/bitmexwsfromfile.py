@@ -29,7 +29,6 @@ class BitMEXwsFromFile():
         self.logger = logging.getLogger('root')
         self.messagelogger = logging.getLogger('bitmex_ws')
         self.last_action = None
-        self.recorded_action_time = None
         self.__reset()
 
     def __del__(self):
@@ -38,16 +37,17 @@ class BitMEXwsFromFile():
 
     def increment_timestep(self):
         parse = self.lines[self.currentline].split(' - ')
-        timestep = iso8601.parse_date(parse[0])
-        if not self.last_action:
-            self.last_action = timestep
-        self.__on_message(timestep, parse[1])
+        #timestep = iso8601.parse_date(parse[0])
+        #if not self.last_action:
+        #    self.last_action = timestep
+        self.last_action = parse[0]
+        continue_waiting = self.__on_message("", parse[1])
         if self.currentline < (len(self.lines) -1):
             self.currentline += 1
         else:
             raise EOFError("reached end of file")
             
-        return timestep
+        return continue_waiting
 
         
     def connect(self, endpoint="", symbol="XBTN15", shouldAuth=True):
@@ -81,12 +81,12 @@ class BitMEXwsFromFile():
         self.currentline = 0 
 
         #process first line of file to get an initial timestamp
-        self.recorded_action_time = self.increment_timestep()
+        #self.recorded_action_time = self.increment_timestep()
         while not {'instrument', 'trade', 'quote'} <= set(self.data):
-            self.last_action = self.increment_timestep()
+            self.increment_timestep()
         
         while not {'margin', 'position', 'order'} <= set(self.data):
-            self.last_action = self.increment_timestep()
+            self.increment_timestep()
            
         # Connected. Wait for partials
         #self.__wait_for_symbol(symbol)
@@ -97,24 +97,35 @@ class BitMEXwsFromFile():
     #
     # Data methods
     #
-
-    
     def wait_update(self):    
-        if not self.recorded_action_time:
-            self.recorded_action_time = self.last_action
-        #Always process at least one message
-        current_timestep = self.increment_timestep()
-        while self.recorded_action_time <= self.last_action:
+        '''
+        def wait_update(self):    
+            if not self.recorded_action_time:
+                self.recorded_action_time = self.last_action
+            #Always process at least one message
+            current_timestep = self.increment_timestep()
+            while self.recorded_action_time <= self.last_action:
+                try:
+                    self.increment_timestep()
+                except:
+                    raise EOFError
+            else:
+                self.last_action = current_timestep
+                return
+        '''
+        while True:
             try:
-                self.increment_timestep()
+                #Increment timestep, if True, then an action has occurred
+                if self.increment_timestep():
+                    return
+                else:
+                    continue
             except:
                 raise EOFError
-        else:
-            self.last_action = current_timestep
-            return
-    
+
+
     def current_timestamp(self):
-        return self.last_action
+        return iso8601.parse_date(self.last_action)
     
     
     def get_instrument(self, symbol="XBTUSD"):
@@ -257,15 +268,14 @@ class BitMEXwsFromFile():
         
     def __on_message(self, ws, message):
         '''Handler for parsing WS messages.'''
-        ## ws is being used to pass the time
         try:
         	message = json.loads(message)
         except:
         	self.logger.error("Failed on message %s." % message)
         	self.exit()
 
-        #self.messagelogger.debug(json.dumps(message))
-
+        # wait_action_occured signals whether to return from wait_update, or continue
+        wait_action_occurred = False
         table = message['table'] if 'table' in message else None
         action = message['action'] if 'action' in message else None
         try:
@@ -310,7 +320,7 @@ class BitMEXwsFromFile():
 
                     #record when new information arrives
                     if table in [ 'quote', 'trade', 'orderBookL2']:
-                        self.recorded_action_time = ws
+                        wait_action_occurred = True
                     
                 elif action == 'update':
                     self.logger.debug('%s: updating %s' % (table, message['data']))
@@ -340,7 +350,7 @@ class BitMEXwsFromFile():
 
                         #record when new information arrives
                         if table in [ 'quote', 'trade', 'orderBookL2']:
-                            self.recorded_action_time = ws
+                            wait_action_occurred = True
                 elif action == 'delete':
                     self.logger.debug('%s: deleting %s' % (table, message['data']))
                     # Locate the item in the collection and remove it.
@@ -351,6 +361,7 @@ class BitMEXwsFromFile():
                     raise Exception("Unknown action: %s" % action)
         except:
             self.logger.error(traceback.format_exc())
+        return wait_action_occurred
 
     def __on_open(self, ws):
         self.logger.debug("Websocket Opened.")

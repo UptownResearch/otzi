@@ -1,6 +1,6 @@
 
 from market_maker.settings import settings
-from market_maker import market_maker
+#from market_maker import market_maker
 from market_maker.utils import constants
 import copy
 import datetime
@@ -37,6 +37,7 @@ class paperless_tracker:
             self.buy_partially_filled = []
             self.sell_partially_filled = []
             self.closed = []
+            self.seen_trades = set()
             self.random_base = random.randint(0, 100000)
             #self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
             self.timestamp = None
@@ -52,6 +53,7 @@ class paperless_tracker:
         self.buy_partially_filled = []
         self.sell_partially_filled = []
         self.closed = []
+        self.seen_trades = set()
         self.random_base = random.randint(0, 100000)
         #self.exchange = market_maker.ExchangeInterface(settings.DRY_RUN)
         self.timestamp = None
@@ -63,7 +65,6 @@ class paperless_tracker:
         self.exchange = exchange
 
     def track_orders_created(self, order):
-
         if settings.paperless == False:
             return None
         buy_orders = []
@@ -77,10 +78,10 @@ class paperless_tracker:
             'data' : orders
             }
             pt_logger.info(json.dumps(order_out))
-            #if orders["side"] == "Buy":
-            #    buy_orders.append(copy.deepcopy(orders))
-            #else:
-            #    sell_orders.append(copy.deepcopy(orders))
+            if orders["side"] == "Buy":
+                buy_orders.append(copy.deepcopy(orders))
+            else:
+                sell_orders.append(copy.deepcopy(orders))
 
         if len(buy_orders) > 0:
             self.buy_orders_created.extend(buy_orders)
@@ -101,13 +102,13 @@ class paperless_tracker:
 
         # let's not do market orders during backtests
         # send all orders to partially filled list
+        default_level = {'size':0}
         if settings.BACKTEST:
             for orders in buy_orders:
                 self.random_base += 1
                 orders["orderID"] = self.random_base
                 orders["cumQty"] = 0
                 orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
-                default_level = {'size':0}
                 orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 self.buy_partially_filled.append(orders)
@@ -117,7 +118,6 @@ class paperless_tracker:
                 orders["orderID"] = self.random_base
                 orders["cumQty"] = 0
                 orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
-                default_level = {'size':0}
                 orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 self.sell_partially_filled.append(orders)
@@ -231,7 +231,6 @@ class paperless_tracker:
                 #self.insert_to_log("Order Created - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orders["cumQty"]) + " @ " + str(orders["price"]) + " " + " Total size: " + str(orders["orderQty"]))
     
     def _fill_orders_queued(self, all_orders, filtered_trades):
-        pt_logger.info(json.dumps(all_orders))
         for order in all_orders:
             orignal_size = order["orderQty"]
             #don't fill more than once
@@ -304,7 +303,7 @@ class paperless_tracker:
         '''Tracks fills based on market trades. (Replaces track_orders.)'''
         if settings.paperless == False:
             return None
-        
+
         trades = self.exchange.recent_trades()
         #self.timestamp = self.exchange.current_timestamp()
         #get only new trades to check
@@ -313,13 +312,15 @@ class paperless_tracker:
         buy = []
         filtered_trades = []
         for trade in trades:
-            trade_date = iso8601.parse_date(trade["timestamp"])
-            if self.timestamp == None or trade_date >= self.timestamp:
+            #trade_date = iso8601.parse_date(trade["timestamp"])
+            #if self.timestamp == None or trade_date >= self.timestamp:
+            if not (trade["trdMatchID"] in self.seen_trades):
                 filtered_trades.append(trade)
                 #if trade['side'] == "Sell":
                 #    sell.append(trade)
                 #else:
                 #    buy.append(trade)
+            self.seen_trades.add(trade["trdMatchID"])
         if len(filtered_trades)==0:
             return
         self._fill_orders_queued(self.buy_partially_filled, filtered_trades)
@@ -331,7 +332,7 @@ class paperless_tracker:
         self.timestamp = iso8601.parse_date(filtered_trades[-1]['timestamp'])
 
         #Fill any orders that are completely filled
-        self.from_partially_to_filled2()        
+        self.from_partially_to_filled()        
         
     def track_orders(self):
 
