@@ -21,7 +21,7 @@ sys.path.append(CODE_DIR)
 from market_maker import bitmex
 from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
-from market_maker import paperless_tracker
+#from market_maker import paperless_tracker
 from market_maker.exchange_interface import ExchangeInterface
 import logging
 
