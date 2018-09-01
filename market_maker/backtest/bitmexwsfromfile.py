@@ -38,6 +38,15 @@ class BitMEXwsFromFile():
         self.messagelogger = logging.getLogger('bitmex_ws')
         self.last_action = None
         self.__reset()
+        if settings.END_TIME:
+            self.end_time = iso8601.parse_date(settings.END_TIME)
+        else:
+            self.end_time = None
+        if settings.START_TIME:
+            self.start_time = iso8601.parse_date(settings.START_TIME)        
+        else:
+            self.start_time = None   
+
 
     def __del__(self):
         #self.exit()
@@ -49,6 +58,10 @@ class BitMEXwsFromFile():
         #if not self.last_action:
         #    self.last_action = timestep
         self.last_action = parse[0]
+        if self.end_time:
+            current_time = iso8601.parse_date(parse[0])
+            if current_time > self.end_time:
+                raise EOFError("reached end time")
         continue_waiting = self.__on_message("", parse[1])
         if self.currentline < (len(self.lines) -1):
             self.currentline += 1
@@ -90,11 +103,25 @@ class BitMEXwsFromFile():
 
         #process first line of file to get an initial timestamp
         #self.recorded_action_time = self.increment_timestep()
+        
+
         while not {'instrument', 'trade', 'quote'} <= set(self.data):
             self.increment_timestep()
         
         while not {'margin', 'position', 'order'} <= set(self.data):
             self.increment_timestep()
+
+        if self.start_time:
+            parse = self.lines[self.currentline].split(' - ')
+            current_time = iso8601.parse_date(parse[0])
+            print( "Start Time: %s  Current Websocket Time: %s" % (settings.START_TIME, parse[0]))
+            if current_time > self.start_time:
+                self.logger.warn("Start Time may be misconfigured!")
+            while current_time < self.start_time:
+                parse = self.lines[self.currentline].split(' - ')
+                current_time = iso8601.parse_date(parse[0])
+                self.currentline += 1
+
            
         # Connected. Wait for partials
         #self.__wait_for_symbol(symbol)
@@ -367,6 +394,8 @@ class BitMEXwsFromFile():
                         self.data[table].remove(item)
                 else:
                     raise Exception("Unknown action: %s" % action)
+        except ValueError:
+            self.logger.info(traceback.format_exc())
         except:
             self.logger.error(traceback.format_exc())
         return wait_action_occurred
