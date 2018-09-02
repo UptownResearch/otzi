@@ -16,6 +16,7 @@ CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
 sys.path.append(CODE_DIR)
 
 from market_maker.settings import settings
+from market_maker.modifiable_settings import ModifiableSettings
 from market_maker.auth.APIKeyAuth import generate_nonce, generate_signature
 from market_maker.utils.log import setup_custom_logger
 from market_maker.utils.math import toNearest
@@ -38,14 +39,16 @@ class BitMEXwsFromFile():
         self.messagelogger = logging.getLogger('bitmex_ws')
         self.last_action = None
         self.__reset()
-        if settings.END_TIME:
-            self.end_time = iso8601.parse_date(settings.END_TIME)
+        self.modifiable_settings = ModifiableSettings.getInstance()
+        if self.modifiable_settings.END_TIME:
+            self.end_time = iso8601.parse_date(self.modifiable_settings.END_TIME)
         else:
             self.end_time = None
-        if settings.START_TIME:
-            self.start_time = iso8601.parse_date(settings.START_TIME)        
+        if self.modifiable_settings.START_TIME:
+            self.start_time = iso8601.parse_date(self.modifiable_settings.START_TIME)        
         else:
             self.start_time = None   
+        
 
 
     def __del__(self):
@@ -98,6 +101,8 @@ class BitMEXwsFromFile():
 
         #Open the log file
         self.logger.info("Opening File: %s" % settings.WS_LOG_FILE)
+        #modifiable_settings = ModifiableSettings.getInstance()
+        print("Modifiable Setting: %d" % self.modifiable_settings.TEST_SETTING)
         self.lines = open(settings.WS_LOG_FILE, 'r').readlines()
         self.currentline = 0 
 
@@ -111,10 +116,11 @@ class BitMEXwsFromFile():
         while not {'margin', 'position', 'order'} <= set(self.data):
             self.increment_timestep()
 
-        if self.start_time:
+        # Should is there an available start time?
+        if self.modifiable_settings.START_TIME:
             parse = self.lines[self.currentline].split(' - ')
             current_time = iso8601.parse_date(parse[0])
-            print( "Start Time: %s  Current Websocket Time: %s" % (settings.START_TIME, parse[0]))
+            print( "Start Time: %s  Current Websocket Time: %s" % (self.modifiable_settings.START_TIME, parse[0]))
             if current_time > self.start_time:
                 self.logger.warn("Start Time may be misconfigured!")
             while current_time < self.start_time:
