@@ -26,7 +26,7 @@ from market_maker.exchange_interface import ExchangeInterface
 from market_maker.modifiable_settings import ModifiableSettings
 
 import logging
-
+import random
 
 # Used for reloading the bot - saves modified times of key files
 #import os
@@ -113,7 +113,8 @@ class OrderManager:
         self.print_status()
 
         # Create orders and converge.
-        self.place_orders()
+        # Suspect that creating orders outside of loop is causing issues in backtests
+        # self.place_orders()
 
     def print_status(self):
         #don't print status if backtesting
@@ -335,14 +336,14 @@ class OrderManager:
             for order in existing_orders:
                 side = "Buy" if order['side'] == "Sell" else "Sell"
                 price = buyprice if order['side'] == "Sell" else sellprice
-                neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side, 'theo': midprice, 'last_price':last_price }
+                neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side, 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000) }
                 to_create.append(neworder)
         else:
             #cancel existing orders and create new ones
             logger.info("Length of existing orders: %d" % (len(existing_orders)))
             self.exchange.cancel_all_orders()
-            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy", 'theo': midprice, 'last_price':last_price }
-            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell", 'theo': midprice, 'last_price':last_price }
+            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000) }
+            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000) }
             to_create.append(buyorder)
             to_create.append(sellorder)
 

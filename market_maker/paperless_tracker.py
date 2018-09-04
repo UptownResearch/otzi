@@ -263,7 +263,7 @@ class paperless_tracker:
                             continue
                         #only fill what isn't needed to clear the queue ahead of our order
                         temp["size"] = temp["size"] - order['remaining_at_level']
-
+                    new_temp_timestamp =  iso8601.parse_date(temp["timestamp"]).isoformat()
                     if (orignal_size - order["cumQty"]) >= temp["size"]:
                         #only partially fill order
                         order["orderQty"] = orignal_size
@@ -280,7 +280,7 @@ class paperless_tracker:
                         'agress' : False,
                         'fillprice' : temp["price"],
                         'fillsize' : filled_size, 
-                        'match_order_timestamp': temp["timestamp"],
+                        'match_order_timestamp': new_temp_timestamp,
                         'data' : order
                         }
                         pt_logger.info(json.dumps(order_out))
@@ -302,7 +302,7 @@ class paperless_tracker:
                         'agress' : False,
                         'fillprice' : temp["price"],
                         'fillsize' : filled_size, 
-                        'match_order_timestamp': temp["timestamp"],
+                        'match_order_timestamp': new_temp_timestamp,
                         'data' : order
                         }
                         pt_logger.info(json.dumps(order_out))
