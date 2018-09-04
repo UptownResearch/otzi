@@ -114,7 +114,6 @@ class paperless_tracker:
         if settings.BACKTEST:
             for orders in buy_orders:
                 self.random_base += 1
-                orders["orderID"] = self.random_base
                 orders["cumQty"] = 0
                 orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                 orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
@@ -123,7 +122,6 @@ class paperless_tracker:
 
             for orders in sell_orders:
                 self.random_base += 1
-                orders["orderID"] = self.random_base
                 orders["cumQty"] = 0
                 orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                 orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
@@ -133,7 +131,7 @@ class paperless_tracker:
 
         for orders in buy_orders:
             self.random_base += 1
-            orders["orderID"] = self.random_base
+            #orders["orderID"] = self.random_base
             orders["cumQty"] = 0
             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
             orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
@@ -186,7 +184,7 @@ class paperless_tracker:
 
         for orders in sell_orders:
             self.random_base += 1
-            orders["orderID"] = self.random_base
+            #orders["orderID"] = self.random_base
             orders["cumQty"] = 0
             orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
             orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
@@ -244,7 +242,11 @@ class paperless_tracker:
             #don't fill more than once
             if orignal_size - order["cumQty"] == 0:
                 continue
+            order_time = iso8601.parse_date(order['timestamp'])
             for temp in filtered_trades:
+                temp_time = iso8601.parse_date(temp["timestamp"])
+                if temp_time < order_time:
+                    continue
                 at_match_price =  order["price"] >= temp["price"] \
                                     if order['side'] is 'Buy' else \
                                     order["price"] <= temp["price"]

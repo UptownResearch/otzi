@@ -102,7 +102,6 @@ class BitMEXwsFromFile():
         #Open the log file
         self.logger.info("Opening File: %s" % settings.WS_LOG_FILE)
         #modifiable_settings = ModifiableSettings.getInstance()
-        print("Modifiable Setting: %d" % self.modifiable_settings.TEST_SETTING)
         self.lines = open(settings.WS_LOG_FILE, 'r').readlines()
         self.currentline = 0 
 

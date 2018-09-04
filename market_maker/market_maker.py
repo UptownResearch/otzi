@@ -265,7 +265,7 @@ class OrderManager:
 
         return {'price': price, 'orderQty': quantity, 'side': "Buy" if index < 0 else "Sell"}
 
-    def prices_to_orders(self, buyprice, sellprice, buyamount = 100, sellamount = 100):
+    def prices_to_orders(self, buyprice, sellprice, buyamount = 100, sellamount = 100, theo=-1):
         tickLog = self.exchange.get_instrument()['tickLog']
         to_amend = []
         to_create = []
@@ -273,7 +273,10 @@ class OrderManager:
         buy_present = sell_present = False
         ticker = self.exchange.get_ticker()
         last_price = self.exchange.recent_trades()[-1]['price']
-        midprice = last_price #ticker["mid"]
+        if theo < 0:
+            midprice = last_price #ticker["mid"]
+        else:
+            midprice = theo
         if len(existing_orders) > 1:
             for order in existing_orders:
                 if order['side'] == "Buy":
@@ -477,12 +480,12 @@ class OrderManager:
         ticker = self.get_ticker()
 
         # Sanity check:
-        if self.get_price_offset(-1) >= ticker["sell"] or self.get_price_offset(1) <= ticker["buy"]:
-            logger.error("Buy: %s, Sell: %s" % (self.start_position_buy, self.start_position_sell))
-            logger.error("First buy position: %s\nBitMEX Best Ask: %s\nFirst sell position: %s\nBitMEX Best Bid: %s" %
-                         (self.get_price_offset(-1), ticker["sell"], self.get_price_offset(1), ticker["buy"]))
-            logger.error("Sanity check failed, exchange data is inconsistent")
-            self.exit()
+        #if self.get_price_offset(-1) >= ticker["sell"] or self.get_price_offset(1) <= ticker["buy"]:
+        #    logger.error("Buy: %s, Sell: %s" % (self.start_position_buy, self.start_position_sell))
+        #    logger.error("First buy position: %s\nBitMEX Best Ask: %s\nFirst sell position: %s\nBitMEX Best Bid: %s" %
+        #                 (self.get_price_offset(-1), ticker["sell"], self.get_price_offset(1), ticker["buy"]))
+        #    logger.error("Sanity check failed, exchange data is inconsistent")
+        #    self.exit()
 
         # Messaging if the position limits are reached
         if self.long_position_limit_exceeded():

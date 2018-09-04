@@ -247,3 +247,10 @@ class Test_Paperless_Tracker(TestCase):
         pp_tracker.close_positions()
         assert pp_tracker.position["currentQty"] == -150
         assert len(pp_tracker.get_orders()) == 2
+
+
+    #To Add:
+    #test_no_fills_from_orders_in_past
+    # Tests that orders in the past aren't filled by future orders
+    # This issues has been encountered
+     

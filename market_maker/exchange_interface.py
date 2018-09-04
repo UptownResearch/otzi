@@ -373,7 +373,7 @@ class ExchangeInterface:
         return self.bitmex.market_depth("x")
 
     def current_timestamp(self):
-        return self.bitmex.current_timestamp()
+        return self.bitmex.current_timestamp().replace(tzinfo=timezone.utc).timestamp()
 
     def contracts_this_run(self):
 
