@@ -40,13 +40,13 @@ class BitMEXwsFromFile():
         self.last_action = None
         self.__reset()
         self.modifiable_settings = ModifiableSettings.getInstance()
-        if self.modifiable_settings.END_TIME:
+        try:
             self.end_time = iso8601.parse_date(self.modifiable_settings.END_TIME)
-        else:
+        except:
             self.end_time = None
-        if self.modifiable_settings.START_TIME:
+        try:
             self.start_time = iso8601.parse_date(self.modifiable_settings.START_TIME)        
-        else:
+        except:
             self.start_time = None   
         
 
@@ -115,8 +115,8 @@ class BitMEXwsFromFile():
         while not {'margin', 'position', 'order'} <= set(self.data):
             self.increment_timestep()
 
-        # Should is there an available start time?
-        if self.modifiable_settings.START_TIME:
+        # Is there an available start time?
+        if self.start_time:
             parse = self.lines[self.currentline].split(' - ')
             current_time = iso8601.parse_date(parse[0])
             print( "Start Time: %s  Current Websocket Time: %s" % (self.modifiable_settings.START_TIME, parse[0]))
