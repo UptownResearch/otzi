@@ -88,13 +88,20 @@ class BitMEXWebsocket():
     #
 
     def wait_update(self):    
+        def no_update():
+            has_action_occurred = self.recorded_action_time <= self.last_action
+            orders = self.open_orders_no_prefix()
+            sides = [o['side'] for o in orders]
+            orders_not_needed = ('Buy' in sides) & ('Sell' in sides)
+            return has_action_occurred & orders_not_needed 
+
         if not self.recorded_action_time:
             self.recorded_action_time = datetime.datetime.now()
         if not self.last_action:
             self.last_action = datetime.datetime.now()
         start = datetime.datetime.now()
         #Always process at least one message
-        while self.recorded_action_time <= self.last_action:
+        while no_update():
             pass
         else:
             self.last_action = datetime.datetime.now()
@@ -145,6 +152,12 @@ class BitMEXWebsocket():
         return self.data['orderBookL2']
         #raise NotImplementedError('orderBook is not subscribed; use askPrice and bidPrice on instrument')
         # return self.data['orderBook25'][0]
+
+    def open_orders_no_prefix(self):
+        orders = self.data['order']
+        # Filter to only open orders (leavesQty > 0) and those that we actually placed
+        return [o for o in orders if o['leavesQty'] > 0]
+        #return [o for o in orders if o['leavesQty'] > 0]
 
     def open_orders(self, clOrdIDPrefix):
         orders = self.data['order']
@@ -308,7 +321,7 @@ class BitMEXWebsocket():
                         for message in message['data']:
                             if message["ordStatus"] == 'New':
                                 pass
-                            elif message["ordStatus"] == 'Filled':
+                            elif (message["ordStatus"] == 'Filled') or (message["ordStatus"] == "Canceled"):
                                 order_out = {
                                     'status': 'Filled',
                                     'paperless' : settings.paperless,
