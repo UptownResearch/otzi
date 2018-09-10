@@ -24,6 +24,7 @@ from market_maker.utils import log, constants, errors, math
 #from market_maker import paperless_tracker
 from market_maker.exchange_interface import ExchangeInterface
 from market_maker.modifiable_settings import ModifiableSettings
+from market_maker.coinbase.order_book import OrderBook
 
 import logging
 import random
@@ -49,6 +50,8 @@ compare_logger.setLevel(logging.WARN)
 class OrderManager:
     def __init__(self, orders_logging_file = None):
         self.exchange = ExchangeInterface(settings.DRY_RUN)
+        self.coinbase = OrderBook(product_id='BTC-USD')
+        self.coinbase.start()
         # Once exchange is created, register exit handler that will always cancel orders
         # on any error.
         atexit.register(self.exit)
@@ -274,6 +277,12 @@ class OrderManager:
         buy_present = sell_present = False
         ticker = self.exchange.get_ticker()
         last_price = self.exchange.recent_trades()[-1]['price']
+        coinbase_midprice = 0.0
+        try:
+            coinbase_midprice = float(self.coinbase.get_bid()+self.coinbase.get_ask())/2
+        except:
+            pass
+
         if theo < 0:
             midprice = last_price #ticker["mid"]
         else:
@@ -283,7 +292,7 @@ class OrderManager:
                 if order['side'] == "Buy":
                     if order['price'] != buyprice:                     
                         neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE,
-                                        'price': buyprice, 'side': "Buy", 'theo': midprice, 'last_price':last_price}
+                                        'price': buyprice, 'side': "Buy", 'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice }
                         if not buy_present:     
                             buy_present = True
                             to_amend.append(neworder)
@@ -297,7 +306,7 @@ class OrderManager:
                 else:
                     if order['price'] != sellprice:
                         neworder = {'orderID': order['orderID'], 'orderQty': settings.ORDER_START_SIZE, 
-                                        'price':  sellprice, 'side': "Sell" , 'theo': midprice, 'last_price':last_price}
+                                        'price':  sellprice, 'side': "Sell" , 'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice}
                         if not sell_present:     
                             sell_present = True
                             to_amend.append(neworder)
@@ -336,14 +345,14 @@ class OrderManager:
             for order in existing_orders:
                 side = "Buy" if order['side'] == "Sell" else "Sell"
                 price = buyprice if order['side'] == "Sell" else sellprice
-                neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side, 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000) }
+                neworder = {'price':  price, 'orderQty': settings.ORDER_START_SIZE, 'side': side, 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
                 to_create.append(neworder)
         else:
             #cancel existing orders and create new ones
             logger.info("Length of existing orders: %d" % (len(existing_orders)))
             self.exchange.cancel_all_orders()
-            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000) }
-            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000) }
+            buyorder = {'price':  buyprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Buy", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
+            sellorder = {'price':  sellprice, 'orderQty': settings.ORDER_START_SIZE, 'side': "Sell", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
             to_create.append(buyorder)
             to_create.append(sellorder)
 
