@@ -8,6 +8,7 @@ import json
 import decimal
 import logging
 import datetime
+import os
 
 # Find code directory relative to our directory
 from os.path import dirname, abspath, join
