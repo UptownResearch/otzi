@@ -292,7 +292,7 @@ class OrderManager:
             for order in existing_orders:
                 if order['side'] == "Buy":
                     if order['price'] != buyprice:                     
-                        neworder = {'orderID': order['orderID'], 'clOrdID' : order['clOrdID'],
+                        neworder = {'orderID': order['orderID'], 
                                     'orderQty': buyamount, 'price': buyprice, 'side': "Buy", 
                                     'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice }
                         if not buy_present:     
@@ -307,7 +307,7 @@ class OrderManager:
 
                 else:
                     if order['price'] != sellprice:
-                        neworder = {'orderID': order['orderID'], 'clOrdID' : order['clOrdID'],
+                        neworder = {'orderID': order['orderID'], 
                                     'orderQty': sellamount, 'price':  sellprice, 'side': "Sell" , 
                                     'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice}
                         if not sell_present:     

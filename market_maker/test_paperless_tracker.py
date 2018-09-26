@@ -121,7 +121,7 @@ class Test_Paperless_Tracker(TestCase):
         assert pp_tracker.buy_partially_filled[0]['orderQty'] == 100
 
     def test_add_and_remove_order(self):
-        order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"}]
+        order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy", "orderID":2}]
         pp_tracker = self.paperless_tracker.getInstance()
         pp_tracker.reset()
         Test1Ei = Test1()
