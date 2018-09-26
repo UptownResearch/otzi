@@ -50,8 +50,10 @@ def mock_csv_reader_generator(variable_with_mock_file):
     return read_lines
 
 
-
-
+reader_calls = [mock_csv_reader_generator(bitmex_trades_end),
+                      mock_csv_reader_generator(orderbook)]
+def multiple_calls(file, delimiter):
+    return reader_calls.pop(0)(file, delimiter)
 
 class Test_ExchangePairAccessor(TestCase):
 
@@ -107,18 +109,18 @@ class Test_ExchangePairAccessor(TestCase):
         assert self.bt.recent_trades()[-1]['price'] == Decimal('7017')
         assert self.gdax_accessor.recent_trades()[-1]['price'] == Decimal('7015.01')
 
-    @patch('market_maker.backtest.exchangepairaccessor.csv.reader', side_effect=mock_csv_reader_generator(bitmex_trades_end))
-    @patch('market_maker.backtest.exchangepairaccessor.open')
-    def test_EPA_should_throw_EOFError_when_exchange_out_of_data(self,  new_open, reader_function):
-        self.timekeeper = Timekeeper()
-        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
 
-        #now load GDAX
-        reader_function.side_effect = mock_csv_reader_generator(bitstamp_trades_end)
-        self.btsmp_accessor = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+
+    @patch('market_maker.backtest.exchangepairaccessor.csv.reader', side_effect= multiple_calls)
+    @patch('market_maker.backtest.exchangepairaccessor.open')
+    def test_EPA_should_return_trades_and_orderbook(self,  new_open, reader_function):
+        self.timekeeper = Timekeeper()
+        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", L2orderbook_filename = "fake2.csv")
+
         self.timekeeper.initialize()
-        # increment time to exhause data
-        self.timekeeper.increment_time()  
-        self.timekeeper.increment_time()  
-        self.assertRaises(EOFError, self.btsmp_accessor.recent_trades)
+        # increment time to get warm
+        while not self.bt.is_warm():
+            self.timekeeper.increment_time()
+        assert self.bt.recent_trades() != []
+        assert self.bt.market_depth() != []
 
