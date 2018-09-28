@@ -546,15 +546,14 @@ class OrderManager:
             self.print_status()
 
         while True:
-            try:
-                self.exchange.wait_update()
-            except EOFError:
-                self.close_log_files()
-                logger.info("Reached end of Backtest file.")
-                break
+            if settings.BACKTEST:
+                try:
+                    self.exchange.wait_update()
+                except EOFError:
+                    self.close_log_files()
+                    logger.info("Reached end of Backtest file.")
+                    break
             if self.exchange.ok_to_enter_order():
-
-
                 #self.check_file_change()
                 #sleep(settings.LOOP_INTERVAL)
                 self.sanity_check()  # Ensures health of mm - several cut-out points here
