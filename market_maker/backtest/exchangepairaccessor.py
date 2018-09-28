@@ -16,7 +16,6 @@ class ExchangePairAccessor(object):
         # timestamp tracking location of last read data line
         self.present_timestamp = None
         self.trades = []
-        self.orderbook = None
         # timestamp tracking most recent timestamp that was requested to update up to
         self.external_timestamp = None
         
@@ -41,45 +40,20 @@ class ExchangePairAccessor(object):
                                'base_amount': Decimal(row[4]), 'taker_side': row[5]}
             self._trade_data.append(completed_trade)
         
-        # load orderbook data 
-        self._orderbook_data = []
-        self._orderbook_timestamps = []
+        # load orderbook data
+        self.orderbook_timestamp = None
+        self.last_line = None #holds last valid orderbook at present_timestamp 
+        self.current_orderbook = None
         if L2orderbook_filename != "": 
-
-            orderbook_csvfile = open(trades_filename)            
-            orderbookreader = csv.reader(L2orderbook_filename, delimiter=';')
-            unprocessed_orderbook_data = []
-            for row in orderbookreader:
-                unprocessed_orderbook_data.append(row)
-            self._headers2 = unprocessed_orderbook_data.pop(0)
-            for row in unprocessed_orderbook_data:
-                timestamp = iso8601.parse_date(self._date_prefix+row[1])
-                # let's not include orderbook timestamps for timekeeper
-                self._orderbook_timestamps.append(timestamp)
-                orderbook_snapshot = []
-                for x in range(0,50):
-                    ask_price = row[4*x + 2]
-                    ask_size  = row[4*x + 3]
-                    bid_price = row[4*x + 4]
-                    bid_size  = row[4*x + 5]
-                    if ask_price != "":
-                        orderbook1 = { 'side': 'Sell',
-                                       'size': Decimal(ask_size),
-                                       'price': Decimal(ask_price)}
-                        orderbook_snapshot.append(orderbook1)
-                    if bid_price != "":
-                        orderbook2 = { 'side': 'Buy',
-                                       'size': Decimal(bid_size),
-                                       'price': Decimal(ask_size)}
-                        orderbook_snapshot.append(orderbook2)
-
-                self._orderbook_data.append(orderbook_snapshot)
+            orderbook_csvfile = open(L2orderbook_filename)            
+            self.orderbookreader = csv.reader(orderbook_csvfile, delimiter=';')
+            self._headers2 = next(self.orderbookreader)
+            self.current_orderbook = next(self.orderbookreader)
 
         # Contribute to timekeeper
         self._timekeeper = timekeeper
         self._timekeeper.contribute_times(self._timestamps)
         self._current_trades_location = 0
-        self._current_orderbook_location = 0
         self.name = name
         
     #
@@ -107,13 +81,32 @@ class ExchangePairAccessor(object):
     '''
 
     def market_depth(self):
-        """Get market depth / orderbook."""
+        """Get market depth / orderbook. Returns orderbook or empty list."""
         self._make_updates()
         #fail if trades requested before warm
         self._fail_if_not_warm()
 
-        return self.orderbook
-
+        orderbook_snapshot = []
+        if self.last_line is None:
+            return []
+        row = self.last_line
+        timestamp = iso8601.parse_date(self._date_prefix+row[1])
+        for x in range(0,5):
+            ask_price = row[4*x + 2]
+            ask_size  = row[4*x + 3]
+            bid_price = row[4*x + 4]
+            bid_size  = row[4*x + 5]
+            if ask_price != "":
+                orderbook1 = { 'side': 'Sell',
+                               'size': Decimal(ask_size),
+                               'price': Decimal(ask_price)}
+                orderbook_snapshot.append(orderbook1)
+            if bid_price != "":
+                orderbook2 = { 'side': 'Buy',
+                               'size': Decimal(bid_size),
+                               'price': Decimal(bid_price)}
+                orderbook_snapshot.append(orderbook2)
+        return orderbook_snapshot
 
     def recent_trades(self, number=50):
         """Get recent trades. Defaults to returning 50 trades. 
@@ -153,19 +146,22 @@ class ExchangePairAccessor(object):
             next_trade = self._trade_data[self._current_trades_location]
         
     def update_orderbook(self, timestamp):
-        next_orderbook = self._orderbook_timestamps[self._current_orderbook_location]
-        while next_orderbook <= timestamp:
-            if self._current_orderbook_location + 1 == len(self._orderbook_data):
+        # process self.current_orderbook
+        row_time = iso8601.parse_date(self._date_prefix+self.current_orderbook[1])
+        while row_time <= timestamp:
+            self.last_line = self.current_orderbook
+            try:
+                self.current_orderbook = next(self.orderbookreader)
+            except StopIteration:
                 break
-            self._current_orderbook_location += 1
-        self.orderbook = self._orderbook_data[self._current_orderbook_location]
+            row_time = iso8601.parse_date(self._date_prefix+self.current_orderbook[1])
 
 
     def _make_updates(self):
         to_timestamp = self._timekeeper.get_time()
         if self.present_timestamp is None or self.present_timestamp < to_timestamp:
             self._update_to_timestamp(to_timestamp)
-        if self._orderbook_data:
+        if self.current_orderbook:
             self.update_orderbook(to_timestamp)
         self.external_timestamp = to_timestamp
         # _update_to_timestamp should not have put the current_timestamp 
@@ -177,6 +173,7 @@ class ExchangePairAccessor(object):
         to_timestamp = self._timekeeper.get_time()
         if self.trades == []:
             raise Exception("Accessing trades before class is warm!")
-        
+
+
         #also check that present_timestamp doesn't exceed timekeeper
         assert self.present_timestamp <= to_timestamp
