@@ -38,7 +38,8 @@ import random
 #
 # Helpers
 #
-logger = log.setup_custom_logger('root')
+#logger = log.setup_custom_logger('root')
+logger = logging.getLogger("root")
 
 compare_logger = logging.getLogger("paperless")
 compare_logger.setLevel(logging.WARN)
