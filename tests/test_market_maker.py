@@ -2,7 +2,7 @@ import datetime
 import iso8601
 from unittest.mock import MagicMock, patch
 from unittest import TestCase
-
+import sys
 
 
 class Test_Market_Maker_Module(TestCase):
@@ -38,7 +38,9 @@ class Test_Market_Maker_Module(TestCase):
 
 
             '''  
-
+        self.settings_mock.DRY_RUN = False
+        self.settings_mock.BACKTEST = True
+        self.settings_mock.SYMBOL = 'XBTUSD'
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
         #from my_module import MyModule
@@ -54,14 +56,14 @@ class Test_Market_Maker_Module(TestCase):
 
     def test_calls_setup_custom_logger(self):
         from market_maker.market_maker import OrderManager
-        #print(self.log.call_count)
         self.log.setup_custom_logger.assert_called()
-        #self.logging.setup_custom_logger.assert_called()
 
     def test_calls_logging(self):
-        from market_maker.market_maker import OrderManager
+        import logging
+        with patch('logging.getLogger') as mock_method:
+            from market_maker.market_maker import OrderManager
         #print(self.log.call_count)
-        self.logging.getLogger.assert_called()
+        mock_method.assert_called()
 
 
 class Test_OrderManager(TestCase):
@@ -78,19 +80,32 @@ class Test_OrderManager(TestCase):
         self.exchange_interface = MagicMock()
         self.coinbase_book = MagicMock()
         self.logging = MagicMock()
+
         self.log = MagicMock()
         modules = {
             'market_maker.settings': self.settings_mock,
             'market_maker.exchange_interface' : self.exchange_interface,
             'market_maker.coinbase.order_book' : self.coinbase_book,
-            'market_maker.utils.log' : self.log,
+            'market_maker.utils.log.setup_custom_logger' : self.log,
+            'market_maker.market_maker.log' : self.log,
             'logging' : self.logging
         }
-
+        self.settings_mock.DRY_RUN = False
+        self.settings_mock.BACKTEST = True
+        self.settings_mock.SYMBOL = 'XBTUSD'
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
-        from market_maker.market_maker import OrderManager
+        #from market_maker.utils import log
+        with patch('market_maker.utils.log.setup_custom_logger') as mock_logger:
+            from market_maker.market_maker import OrderManager
+        #from market_maker.market_maker import OrderManager
+        #print(sys.modules.items())
         self.orderManager = OrderManager
+        #with patch('market_maker.utils.log.setup_custom_logger') as mock_logger:
+        #    import market_maker.market_maker
+        #with patch.dict(sys.modules, modules) as patched:
+        #    import market_maker.market_maker
+        #self.orderManager = market_maker.market_maker.OrderManager
 
     def tearDown(self):
         """

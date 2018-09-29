@@ -7,7 +7,7 @@ from decimal import Decimal
 
 class ExchangePairAccessor(object):
 
-    """ExchangePairAccessor."""
+    """ExchangePairAccessor. Use to access data for a single pair at a single exchange."""
 
     def __init__(self, timekeeper = None, trades_filename = "", L2orderbook_filename = "",
                 name = ""):
@@ -36,8 +36,10 @@ class ExchangePairAccessor(object):
             timestamp = iso8601.parse_date(row[1])
             self._timestamps.append(timestamp)
             # 'time_coinapi', 'price', 'base_amount', 'taker_side'
-            completed_trade = {'timestamp': timestamp , 'guid': row[2], 'price': Decimal(row[3]), 
-                               'base_amount': Decimal(row[4]), 'taker_side': row[5]}
+            side = 'Buy' if row[5] == 'BUY' else 'Sell'
+            completed_trade = {'time_object': timestamp, 'timestamp':row[1], 
+                                "trdMatchID": row[2], 'price': Decimal(row[3]), 
+                               'size': Decimal(row[4]), 'side': row[5]}
             self._trade_data.append(completed_trade)
         
         # load orderbook data
@@ -71,16 +73,23 @@ class ExchangePairAccessor(object):
         self._make_updates()
         '''Checks to see if there is market data.'''
         return len(self.trades) > 0
-        
-    '''
+      
+    def get_instrument(self, symbol=None):
+        '''Only really used to provide ticklog '''
+        instrument = {}
+        tick_size = 0.5
+        instrument['tickLog'] = Decimal(str(tick_size)).as_tuple().exponent * -1
+        return instrument
+
+    def wait_update(self):
+        return True 
+
+    
     def ticker_data(self, symbol=None):
         """Get ticker data."""
-        if symbol is None:
-            symbol = self.symbol
-        return self.ws.get_ticker(symbol)
-    '''
+        raise NotImplementedError("ticker_data not implemented in exchangepairaccessor")
 
-    def market_depth(self):
+    def market_depth(self, symbol):
         """Get market depth / orderbook. Returns orderbook or empty list."""
         self._make_updates()
         #fail if trades requested before warm
@@ -136,13 +145,13 @@ class ExchangePairAccessor(object):
         
     def _update_to_timestamp(self, timestamp):
         next_trade = self._trade_data[self._current_trades_location]
-        while next_trade['timestamp'] <= timestamp:
+        while next_trade['time_object'] <= timestamp:
             #Apply Trade Data
             self.trades.append(next_trade)      
             self._current_trades_location += 1
             if self._current_trades_location == len(self._trade_data):
                 raise EOFError()
-            self.present_timestamp = next_trade['timestamp']
+            self.present_timestamp = next_trade['time_object']
             next_trade = self._trade_data[self._current_trades_location]
         
     def update_orderbook(self, timestamp):

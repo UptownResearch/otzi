@@ -82,7 +82,7 @@ class OrderManager:
                 if settings.OUTPUT_FILENAME:
                     outfilename = settings.OUTPUT_FILENAME
                 else:
-                    outfilename = f"{datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
+                    outfilename = f"{datetime.now():%Y-%m-%d-%H-%M-%S}" + ".lo"
                 if settings.BACKTEST:
                     directory = "backtest/"
                 else:

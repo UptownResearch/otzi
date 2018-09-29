@@ -122,5 +122,5 @@ class Test_ExchangePairAccessor(TestCase):
         while not self.bt.is_warm():
             self.timekeeper.increment_time()
         assert self.bt.recent_trades() != []
-        assert self.bt.market_depth() != []
+        assert self.bt.market_depth("") != []
 
