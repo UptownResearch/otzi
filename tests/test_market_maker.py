@@ -54,10 +54,6 @@ class Test_Market_Maker_Module(TestCase):
 
         self.module_patcher.stop()
 
-    def test_calls_setup_custom_logger(self):
-        from market_maker.market_maker import OrderManager
-        self.log.setup_custom_logger.assert_called()
-
     def test_calls_logging(self):
         import logging
         with patch('logging.getLogger') as mock_method:
