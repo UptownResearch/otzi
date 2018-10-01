@@ -52,8 +52,9 @@ compare_logger.setLevel(logging.WARN)
 class OrderManager:
     def __init__(self, orders_logging_file = None):
         self.exchange = ExchangeInterface(settings.DRY_RUN)
-        self.coinbase = OrderBook(product_id='BTC-USD')
-        self.coinbase.start()
+        if not settings.BACKTEST:
+            self.coinbase = OrderBook(product_id='BTC-USD')
+            self.coinbase.start()
         # Once exchange is created, register exit handler that will always cancel orders
         # on any error.
         atexit.register(self.exit)
@@ -280,10 +281,11 @@ class OrderManager:
         ticker = self.exchange.get_ticker()
         last_price = self.exchange.recent_trades()[-1]['price']
         coinbase_midprice = 0.0
-        try:
-            coinbase_midprice = float(self.coinbase.get_bid()+self.coinbase.get_ask())/2
-        except:
-            pass
+        if not settings.BACKTEST:
+            try:
+                coinbase_midprice = float(self.coinbase.get_bid()+self.coinbase.get_ask())/2
+            except:
+                pass
 
         if theo < 0:
             midprice = last_price #ticker["mid"]

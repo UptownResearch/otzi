@@ -154,8 +154,8 @@ class Test_OrderManager(TestCase):
         'size': 100, 'price': 6433.5, 'tickDirection': 'MinusTick', 
         'trdMatchID': 'dddb8785-7156-f030-b325-c35daed19640', 'grossValue': 1349100, 
         'homeNotional': 0.013491, 'foreignNotional': 100}]
-        self.om.coinbase.get_bid.return_value = 6433.0
-        self.om.coinbase.get_ask.return_value = 6433.5
+        #self.om.coinbase.get_bid.return_value = 6433.0
+        #self.om.coinbase.get_ask.return_value = 6433.5
         self.om.prices_to_orders(6430, 6440)
         self.om.exchange.create_bulk_orders.assert_called()
         assert len(self.om.exchange.create_bulk_orders.call_args[0][0]) == 2
@@ -173,8 +173,8 @@ class Test_OrderManager(TestCase):
         'size': 100, 'price': 6433.5, 'tickDirection': 'MinusTick', 
         'trdMatchID': 'dddb8785-7156-f030-b325-c35daed19640', 'grossValue': 1349100, 
         'homeNotional': 0.013491, 'foreignNotional': 100}]
-        self.om.coinbase.get_bid.return_value = 6433.0
-        self.om.coinbase.get_ask.return_value = 6433.5
+        #self.om.coinbase.get_bid.return_value = 6433.0
+        #self.om.coinbase.get_ask.return_value = 6433.5
         self.om.prices_to_orders(6430, 6440)
         self.om.exchange.create_bulk_orders.assert_called()
         assert len(self.om.exchange.create_bulk_orders.call_args[0][0]) == 1
@@ -197,8 +197,8 @@ class Test_OrderManager(TestCase):
         'size': 100, 'price': 6433.5, 'tickDirection': 'MinusTick', 
         'trdMatchID': 'dddb8785-7156-f030-b325-c35daed19640', 'grossValue': 1349100, 
         'homeNotional': 0.013491, 'foreignNotional': 100}]
-        self.om.coinbase.get_bid.return_value = 6433.0
-        self.om.coinbase.get_ask.return_value = 6433.5
+        #self.om.coinbase.get_bid.return_value = 6433.0
+        #self.om.coinbase.get_ask.return_value = 6433.5
         self.om.prices_to_orders(6429, 6439)
         self.om.exchange.create_bulk_orders.assert_not_called()
         self.om.exchange.amend_bulk_orders.assert_called()
