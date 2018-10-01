@@ -90,7 +90,8 @@ class ExchangePairAccessor(object):
         raise NotImplementedError("ticker_data not implemented in exchangepairaccessor")
 
     def market_depth(self, symbol):
-        """Get market depth / orderbook. Returns orderbook or empty list."""
+        """Get market depth / orderbook. Returns orderbook or empty list.
+        Symbol is ignored."""
         self._make_updates()
         #fail if trades requested before warm
         self._fail_if_not_warm()
@@ -99,7 +100,8 @@ class ExchangePairAccessor(object):
         if self.last_line is None:
             return []
         row = self.last_line
-        timestamp = iso8601.parse_date(self._date_prefix+row[1])
+        self.ob_local_timestamp = iso8601.parse_date(self._date_prefix+row[1])
+        self.ob_exc_timestamp = iso8601.parse_date(self._date_prefix+row[1])
         for x in range(0,5):
             ask_price = row[4*x + 2]
             ask_size  = row[4*x + 3]
