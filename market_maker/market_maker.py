@@ -32,7 +32,7 @@ import random
 
 # Used for reloading the bot - saves modified times of key files
 #import os
-#watched_files_mtimes = [(f, getmtime(f)) for f in settings.WATCHED_FILES]
+#watched_files_mtimes = [(f, getmtime(f)) for f in self.settings.WATCHED_FILES]
 
 
 #
@@ -50,9 +50,10 @@ compare_logger.setLevel(logging.WARN)
 #compare_logger.addHandler(fh)
 
 class OrderManager:
-    def __init__(self, orders_logging_file = None):
-        self.exchange = ExchangeInterface(settings.DRY_RUN)
-        if not settings.BACKTEST:
+    def __init__(self, orders_logging_file = None, settings = None):
+        self.settings = settings
+        self.exchange = ExchangeInterface(self.settings.DRY_RUN)
+        if not self.settings.BACKTEST:
             self.coinbase = OrderBook(product_id='BTC-USD')
             self.coinbase.start()
         # Once exchange is created, register exit handler that will always cancel orders
@@ -62,7 +63,7 @@ class OrderManager:
 
         logger.info("Using symbol %s." % self.exchange.symbol)
 
-        if settings.DRY_RUN:
+        if self.settings.DRY_RUN:
             logger.info("Initializing dry run. Orders printed below represent what would be posted to BitMEX.")
         else:
             logger.info("Order Manager initializing, connecting to BitMEX. Live run: executing real trades.")
@@ -70,7 +71,7 @@ class OrderManager:
 
         #self.start_time = self.exchange.current_timestep()
         self.instrument = self.exchange.get_instrument()
-        if settings.compare is True:
+        if self.settings.compare is True:
             self.starting_qty = self.exchange.get_delta()[0]
         else:
             self.starting_qty = self.exchange.get_delta()
@@ -80,28 +81,28 @@ class OrderManager:
         self.pt_logger = logging.getLogger("paperless_orders")
         self.pt_logger.setLevel(logging.INFO)  
         if orders_logging_file is None:
-            if settings.LOG_ORDERS_TO_FILE: 
-                if settings.OUTPUT_FILENAME:
-                    outfilename = settings.OUTPUT_FILENAME
+            if self.settings.LOG_ORDERS_TO_FILE: 
+                if self.settings.OUTPUT_FILENAME:
+                    outfilename = self.settings.OUTPUT_FILENAME
                 else:
                     outfilename = f"{datetime.now():%Y-%m-%d-%H-%M-%S}" + ".lo"
-                if settings.BACKTEST:
+                if self.settings.BACKTEST:
                     directory = "backtest/"
                 else:
                     directory = ""
 
-                order_file = settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + outfilename           
+                order_file = self.settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + outfilename           
                 ofh = logging.FileHandler(order_file)
                 simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
                 ofh.setFormatter(simple_formatter)
                 self.pt_logger.addHandler(ofh)
         else:
-            if settings.BACKTEST:
+            if self.settings.BACKTEST:
                 directory = "backtest/"
             else:
                 directory = ""
 
-            order_file = settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + orders_logging_file           
+            order_file = self.settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + orders_logging_file           
             ofh = logging.FileHandler(order_file)
             simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
             ofh.setFormatter(simple_formatter)
@@ -124,9 +125,9 @@ class OrderManager:
 
     def print_status(self):
         #don't print status if backtesting
-        if settings.backtest is True:
+        if self.settings.backtest is True:
             return
-        if settings.compare is not True:
+        if self.settings.compare is not True:
             """Print the current MM status."""
 
             margin = self.exchange.get_margin()
@@ -137,8 +138,8 @@ class OrderManager:
 
             logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
             logger.info("Current Contract Position: %d" % self.running_qty)
-            if settings.CHECK_POSITION_LIMITS:
-                logger.info("Position limits: %d/%d" % (settings.MIN_POSITION, settings.MAX_POSITION))
+            if self.settings.CHECK_POSITION_LIMITS:
+                logger.info("Position limits: %d/%d" % (self.settings.MIN_POSITION, self.settings.MAX_POSITION))
             if position['currentQty'] != 0:
                 logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
                 logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
@@ -156,8 +157,8 @@ class OrderManager:
 
             logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
             logger.info("Current Contract Position: %d" % self.running_qty)
-            if settings.CHECK_POSITION_LIMITS:
-                logger.info("Position limits: %d/%d" % (settings.MIN_POSITION, settings.MAX_POSITION))
+            if self.settings.CHECK_POSITION_LIMITS:
+                logger.info("Position limits: %d/%d" % (self.settings.MIN_POSITION, self.settings.MAX_POSITION))
             if position['currentQty'] != 0:
                 logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
                 logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
@@ -167,8 +168,8 @@ class OrderManager:
 
             compare_logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(paper_start_XBt))
             compare_logger.info("Current Contract Position: %d" % paper_delta)
-            if settings.CHECK_POSITION_LIMITS:
-                compare_logger.info("Position limits: %d/%d" % (settings.MIN_POSITION, settings.MAX_POSITION))
+            if self.settings.CHECK_POSITION_LIMITS:
+                compare_logger.info("Position limits: %d/%d" % (self.settings.MIN_POSITION, self.settings.MAX_POSITION))
             if paper_position['currentQty'] != 0:
                 compare_logger.info("Avg Cost Price: %.*f" % (tickLog, float(paper_position['avgCostPrice'])))
                 compare_logger.info("Avg Entry Price: %.*f" % (tickLog, float(paper_position['avgEntryPrice'])))
@@ -188,16 +189,16 @@ class OrderManager:
         # If we're maintaining spreads and we already have orders in place,
         # make sure they're not ours. If they are, we need to adjust, otherwise we'll
         # just work the orders inward until they collide.
-        if settings.MAINTAIN_SPREADS:
+        if self.settings.MAINTAIN_SPREADS:
             if ticker['buy'] == self.exchange.get_highest_buy()['price']:
                 self.start_position_buy = ticker["buy"]
             if ticker['sell'] == self.exchange.get_lowest_sell()['price']:
                 self.start_position_sell = ticker["sell"]
 
         # Back off if our spread is too small.
-        if self.start_position_buy * (1.00 + settings.MIN_SPREAD) > self.start_position_sell:
-            self.start_position_buy *= (1.00 - (settings.MIN_SPREAD / 2))
-            self.start_position_sell *= (1.00 + (settings.MIN_SPREAD / 2))
+        if self.start_position_buy * (1.00 + self.settings.MIN_SPREAD) > self.start_position_sell:
+            self.start_position_buy *= (1.00 - (self.settings.MIN_SPREAD / 2))
+            self.start_position_sell *= (1.00 + (self.settings.MIN_SPREAD / 2))
 
         # Midpoint, used for simpler order placement.
         self.start_position_mid = ticker["mid"]
@@ -221,7 +222,7 @@ class OrderManager:
         """Given an index (1, -1, 2, -2, etc.) return the price for that side of the book.
            Negative is a buy, positive is a sell."""
         # Maintain existing spreads for max profit
-        if settings.MAINTAIN_SPREADS:
+        if self.settings.MAINTAIN_SPREADS:
             start_position = self.start_position_buy if index < 0 else self.start_position_sell
             # First positions (index 1, -1) should start right at start_position, others should branch from there
             index = index + 1 if index < 0 else index - 1
@@ -237,7 +238,7 @@ class OrderManager:
             if index < 0 and start_position > self.start_position_sell:
                 start_position = self.start_position_buy
 
-        return math.toNearest(start_position * (1 + settings.INTERVAL) ** index, self.instrument['tickSize'])
+        return math.toNearest(start_position * (1 + self.settings.INTERVAL) ** index, self.instrument['tickSize'])
 
     ###
     # Orders
@@ -252,7 +253,7 @@ class OrderManager:
         # then we match orders from the outside in, ensuring the fewest number of orders are amended and only
         # a new order is created in the inside. If we did it inside-out, all orders would be amended
         # down and a new order would be created at the outside.
-        for i in reversed(range(1, settings.ORDER_PAIRS + 1)):
+        for i in reversed(range(1, self.settings.ORDER_PAIRS + 1)):
             if not self.long_position_limit_exceeded():
                 buy_orders.append(self.prepare_order(-i))
             if not self.short_position_limit_exceeded():
@@ -263,10 +264,10 @@ class OrderManager:
     def prepare_order(self, index):
         """Create an order object."""
 
-        if settings.RANDOM_ORDER_SIZE is True:
-            quantity = random.randint(settings.MIN_ORDER_SIZE, settings.MAX_ORDER_SIZE)
+        if self.settings.RANDOM_ORDER_SIZE is True:
+            quantity = random.randint(self.settings.MIN_ORDER_SIZE, self.settings.MAX_ORDER_SIZE)
         else:
-            quantity = settings.ORDER_START_SIZE + ((abs(index) - 1) * settings.ORDER_STEP_SIZE)
+            quantity = self.settings.ORDER_START_SIZE + ((abs(index) - 1) * self.settings.ORDER_STEP_SIZE)
 
         price = self.get_price_offset(index)
 
@@ -281,7 +282,7 @@ class OrderManager:
         ticker = self.exchange.get_ticker()
         last_price = self.exchange.recent_trades()[-1]['price']
         coinbase_midprice = 0.0
-        if not settings.BACKTEST:
+        if not self.settings.BACKTEST:
             try:
                 coinbase_midprice = float(self.coinbase.get_bid()+self.coinbase.get_ask())/2
             except:
@@ -401,7 +402,7 @@ class OrderManager:
                 if desired_order['orderQty'] != order['leavesQty'] or (
                         # If price has changed, and the change is more than our RELIST_INTERVAL, amend.
                         desired_order['price'] != order['price'] and
-                        abs((desired_order['price'] / order['price']) - 1) > settings.RELIST_INTERVAL):
+                        abs((desired_order['price'] / order['price']) - 1) > self.settings.RELIST_INTERVAL):
                     
                     # The math in this next line seems wrong. Instead of the new orderQty being 
                     # order['cumQty'] + desired_order['orderQty'], it seems like it should be
@@ -468,17 +469,17 @@ class OrderManager:
 
     def short_position_limit_exceeded(self):
         """Returns True if the short position limit is exceeded"""
-        if not settings.CHECK_POSITION_LIMITS:
+        if not self.settings.CHECK_POSITION_LIMITS:
             return False
         position = self.exchange.get_delta()
-        return position <= settings.MIN_POSITION
+        return position <= self.settings.MIN_POSITION
 
     def long_position_limit_exceeded(self):
         """Returns True if the long position limit is exceeded"""
-        if not settings.CHECK_POSITION_LIMITS:
+        if not self.settings.CHECK_POSITION_LIMITS:
             return False
         position = self.exchange.get_delta()
-        return position >= settings.MAX_POSITION
+        return position >= self.settings.MAX_POSITION
 
     ###
     # Sanity
@@ -508,12 +509,12 @@ class OrderManager:
         if self.long_position_limit_exceeded():
             logger.info("Long delta limit exceeded")
             logger.info("Current Position: %.f, Maximum Position: %.f" %
-                        (self.exchange.get_delta(), settings.MAX_POSITION))
+                        (self.exchange.get_delta(), self.settings.MAX_POSITION))
 
         if self.short_position_limit_exceeded():
             logger.info("Short delta limit exceeded")
             logger.info("Current Position: %.f, Minimum Position: %.f" %
-                        (self.exchange.get_delta(), settings.MIN_POSITION))
+                        (self.exchange.get_delta(), self.settings.MIN_POSITION))
 
     ###
     # Running
@@ -543,13 +544,13 @@ class OrderManager:
 
     def run_loop(self):
         def print_output():
-            if not settings.BACKTEST:    
+            if not self.settings.BACKTEST:    
                 sys.stdout.write("-----\n")
                 sys.stdout.flush()
             self.print_status()
 
         while True:
-            if settings.BACKTEST:
+            if self.settings.BACKTEST:
                 try:
                     self.exchange.wait_update()
                 except EOFError:
@@ -558,7 +559,7 @@ class OrderManager:
                     break
             if self.exchange.ok_to_enter_order():
                 #self.check_file_change()
-                #sleep(settings.LOOP_INTERVAL)
+                #sleep(self.settings.LOOP_INTERVAL)
                 self.sanity_check()  # Ensures health of mm - several cut-out points here
 
                 # This will restart on very short downtime, but if it's longer,
@@ -566,7 +567,7 @@ class OrderManager:
 
                 self.place_orders()  # Creates desired orders and converges to existing orders
  
-                if not settings.BACKTEST:
+                if not self.settings.BACKTEST:
                     if not self.check_connection():
                         logger.error("Realtime data connection unexpectedly closed, restarting.")
                         self.restart()
