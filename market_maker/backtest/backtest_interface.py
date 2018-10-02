@@ -119,7 +119,7 @@ class BacktestInterface:
         return self.accessor.recent_trades()
 
     def market_deep(self):
-        return self.accessor.market_depth()
+        return self.accessor.market_depth("")
 
     def current_timestamp(self):
         return self.accessor.current_timestamp().timestamp()
