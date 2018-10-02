@@ -101,7 +101,7 @@ class ExchangePairAccessor(object):
             return []
         row = self.last_line
         self.ob_local_timestamp = iso8601.parse_date(self._date_prefix+row[1])
-        self.ob_exc_timestamp = iso8601.parse_date(self._date_prefix+row[1])
+        self.ob_exc_timestamp = iso8601.parse_date(self._date_prefix+row[0])
         for x in range(0,5):
             ask_price = row[4*x + 2]
             ask_size  = row[4*x + 3]
@@ -170,7 +170,7 @@ class ExchangePairAccessor(object):
 
     def _make_updates(self):
         to_timestamp = self._timekeeper.get_time()
-        if self.present_timestamp is None or self.present_timestamp < to_timestamp:
+        if self.present_timestamp is None or self.present_timestamp <= to_timestamp:
             self._update_to_timestamp(to_timestamp)
         if self.current_orderbook:
             self.update_orderbook(to_timestamp)
