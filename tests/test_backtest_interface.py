@@ -27,6 +27,29 @@ MEX_OB_BTC_USD = directory + '/test_files/bitmex_ob_test.csv'
 
 class Test_BacktestInterface(TestCase):
 
+    def setUp(self):
+        """
+        It's patching time
+        """
+
+        #http://www.voidspace.org.uk/python/mock/examples.html#mocking-imports-with-patch-dict
+        self.settings_mock = MagicMock()
+        modules = {
+            'market_maker.settings': self.settings_mock,
+        }
+        self.settings_mock.DRY_RUN = False
+        self.settings_mock.BACKTEST = True
+        self.settings_mock.SYMBOL = 'XBTUSD'
+        self.module_patcher = patch.dict('sys.modules', modules)
+        self.module_patcher.start()
+
+    def tearDown(self):
+        """
+        Let's clean up
+        """
+
+        self.module_patcher.stop()
+
     def test_BackTest_stack(self):
         timekeeper = Timekeeper()
         bmex = BacktestInterface(timekeeper = timekeeper, 
@@ -35,7 +58,7 @@ class Test_BacktestInterface(TestCase):
         orders =    [{"orderID": "1", "orderQty": 10, "price": 7017.5, "side": "Sell" },
                     {"orderID": "2", "orderQty": 10, "price": 7017, "side": "Buy" }]
         bmex.create_bulk_orders(orders)
-        for x in range(5):
+        for x in range(20):
             timekeeper.increment_time()
         bmex.loop()
         print(timekeeper.get_time())
