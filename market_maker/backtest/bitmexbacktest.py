@@ -25,12 +25,14 @@ class BitMEXbacktest(object):
     """BitMEX API Connector."""
 
     def __init__(self, base_url=None, symbol=None, apiKey=None, apiSecret=None,
-                 orderIDPrefix='mm_bitmex_', shouldWSAuth=True, postOnly=False, timeout=7):
+                 orderIDPrefix='mm_bitmex_', shouldWSAuth=True, postOnly=False, 
+                 settings = None,timeout=7):
         """Init connector."""
         #self.logger = logging.getLogger('root')
         self.base_url = base_url
         self.symbol = symbol
         self.postOnly = postOnly
+        self.settings = settings
         #Don't need to authenticate, so just set apiKey
         self.apiKey = "Some Key"
         if (apiKey is None):
@@ -40,7 +42,7 @@ class BitMEXbacktest(object):
         self.apiKey = apiKey
         self.apiSecret = apiSecret
         if len(orderIDPrefix) > 13:
-            raise ValueError("settings.ORDERID_PREFIX must be at most 13 characters long!")
+            raise ValueError("self.settings.ORDERID_PREFIX must be at most 13 characters long!")
         self.orderIDPrefix = orderIDPrefix
         self.retries = 0  # initialize counter
 
@@ -52,7 +54,7 @@ class BitMEXbacktest(object):
         #self.session.headers.update({'accept': 'application/json'})
         self.headers = None
         # Create websocket for streaming data
-        self.ws = BitMEXwsFromFile()
+        self.ws = BitMEXwsFromFile(self.settings = settings)
         self.ws.connect(base_url, symbol, shouldAuth=shouldWSAuth)
 
         self.timeout = timeout

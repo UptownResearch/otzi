@@ -18,7 +18,7 @@ sys.path.append(CODE_DIR)
 from market_maker.auth import APIKeyAuthWithExpires
 from market_maker.utils import constants, errors
 from market_maker.ws.ws_thread import BitMEXWebsocket
-from market_maker.settings import settings
+#from market_maker.settings import settings
 
 #log orders to file
 order_logger = logging.getLogger("orders")
@@ -42,12 +42,14 @@ class BitMEX(object):
     """BitMEX API Connector."""
 
     def __init__(self, base_url=None, symbol=None, apiKey=None, apiSecret=None,
-                 orderIDPrefix='mm_bitmex_', shouldWSAuth=True, postOnly=False, timeout=7):
+                 orderIDPrefix='mm_bitmex_', shouldWSAuth=True, postOnly=False, 
+                 settings = None, timeout=7):
         """Init connector."""
         self.logger = logging.getLogger('root')
         self.base_url = base_url
         self.symbol = symbol
         self.postOnly = postOnly
+        self.settings = settings
         if (apiKey is None):
             raise Exception("Please set an API key and Secret to get started. See " +
                             "https://github.com/BitMEX/sample-market-maker/#getting-started for more information."
@@ -55,7 +57,7 @@ class BitMEX(object):
         self.apiKey = apiKey
         self.apiSecret = apiSecret
         if len(orderIDPrefix) > 13:
-            raise ValueError("settings.ORDERID_PREFIX must be at most 13 characters long!")
+            raise ValueError("self.settings.ORDERID_PREFIX must be at most 13 characters long!")
         self.orderIDPrefix = orderIDPrefix
         self.retries = 0  # initialize counter
 
@@ -68,7 +70,7 @@ class BitMEX(object):
         self.headers = None
 
         # Create websocket for streaming data
-        self.ws = BitMEXWebsocket()
+        self.ws = BitMEXWebsocket(settings = self.settings)
         self.ws.connect(base_url, symbol, shouldAuth=shouldWSAuth)
 
         self.timeout = timeout
@@ -205,7 +207,7 @@ class BitMEX(object):
         }
         order_out = {
             'status': 'Created',
-            'paperless' : settings.paperless,
+            'paperless' : self.settings.paperless,
             'type' : 'Live',
             'data' : postdict
         }
@@ -220,7 +222,7 @@ class BitMEX(object):
         postdict={'orders': orders}
         order_out = {
             'status': 'Amended',
-            'paperless' : settings.paperless,
+            'paperless' : self.settings.paperless,
             'type' : 'Live',
             'data' : postdict
         }
@@ -238,7 +240,7 @@ class BitMEX(object):
         postdict={'orders': orders}
         order_out = {
             'status': 'Created',
-            'paperless' : settings.paperless,
+            'paperless' : self.settings.paperless,
             'type' : 'Live',
             'data' : postdict
         }
@@ -274,7 +276,7 @@ class BitMEX(object):
         }
         order_out = {
             'status': 'Cancelled',
-            'paperless' : settings.paperless,
+            'paperless' : self.settings.paperless,
             'type' : 'Live',
             'data' : postdict
         }
@@ -302,7 +304,7 @@ class BitMEX(object):
                     continue
                 fill_out = {
                 'status': 'Filled',
-                'paperless' : settings.paperless,
+                'paperless' : self.settings.paperless,
                 'type' : 'Live',
                 'data' : postdict
                 }

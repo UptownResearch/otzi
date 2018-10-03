@@ -43,7 +43,8 @@ class BitMEXWebsocket():
     # Don't grow a table larger than this amount. Helps cap memory usage.
     MAX_TABLE_LEN = 200
 
-    def __init__(self):
+    def __init__(self, settings=None):
+        self.settings = settings
         self.logger = logging.getLogger('root')
         self.messagelogger = logging.getLogger('bitmex_ws')
         self.__reset()
@@ -222,7 +223,7 @@ class BitMEXWebsocket():
                                          header=self.__get_auth()
                                          )
 
-        setup_custom_logger('websocket', log_level=settings.LOG_LEVEL)
+        setup_custom_logger('websocket', log_level=self.settings.LOG_LEVEL)
         self.wst = threading.Thread(target=lambda: self.ws.run_forever(sslopt=sslopt_ca_certs))
         self.wst.daemon = True
         self.wst.start()
@@ -251,8 +252,8 @@ class BitMEXWebsocket():
         nonce = generate_nonce()
         return [
             "api-nonce: " + str(nonce),
-            "api-signature: " + generate_signature(settings.API_SECRET, 'GET', '/realtime', nonce, ''),
-            "api-key:" + settings.API_KEY
+            "api-signature: " + generate_signature(self.settings.API_SECRET, 'GET', '/realtime', nonce, ''),
+            "api-key:" + self.settings.API_KEY
         ]
 
     def __wait_for_account(self):
@@ -325,7 +326,7 @@ class BitMEXWebsocket():
                             elif (message["ordStatus"] == 'Filled') or (message["ordStatus"] == "Canceled"):
                                 order_out = {
                                     'status': message["ordStatus"],
-                                    'paperless' : settings.paperless,
+                                    'paperless' : self.settings.paperless,
                                     'type' : 'Live',
                                     'data' : message
                                 }
@@ -334,7 +335,7 @@ class BitMEXWebsocket():
                     if table == 'order':
                         order_out = {
                             'status': 'OrderReceived',
-                            'paperless' : settings.paperless,
+                            'paperless' : self.settings.paperless,
                             'type' : 'Live',
                             'data' : message['data']
                         }

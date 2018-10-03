@@ -34,7 +34,8 @@ class BitMEXwsFromFile():
     # Don't grow a table larger than this amount. Helps cap memory usage.
     MAX_TABLE_LEN = 200
 
-    def __init__(self):
+    def __init__(self, settings = None):
+        self.settings = settings 
         self.logger = logging.getLogger('root')
         self.messagelogger = logging.getLogger('bitmex_ws')
         self.last_action = None
@@ -100,9 +101,9 @@ class BitMEXwsFromFile():
         #self.logger.info('Connected to WS. Waiting for data images, this may take a moment...')
 
         #Open the log file
-        self.logger.info("Opening File: %s" % settings.WS_LOG_FILE)
+        self.logger.info("Opening File: %s" % self.settings.WS_LOG_FILE)
         #modifiable_settings = ModifiableSettings.getInstance()
-        self.lines = open(settings.WS_LOG_FILE, 'r').readlines()
+        self.lines = open(self.settings.WS_LOG_FILE, 'r').readlines()
         self.currentline = 0 
 
         #process first line of file to get an initial timestamp
