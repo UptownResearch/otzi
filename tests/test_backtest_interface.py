@@ -59,7 +59,7 @@ class Test_BacktestInterface(TestCase):
 
     def test_BackTest_stack(self):
         timekeeper = Timekeeper()
-        bmex = BacktestInterface(timekeeper = timekeeper, 
+        bmex = BacktestInterface(timekeeper = timekeeper, settings = self.settings_mock,
             trades_filename = MEX_BTC_USD, L2orderbook_filename = MEX_OB_BTC_USD)
         timekeeper.initialize()
         orders =    [{"orderID": "1", "orderQty": 10, "price": 7017.5, "side": "Sell" },
@@ -69,5 +69,17 @@ class Test_BacktestInterface(TestCase):
             timekeeper.increment_time()
         bmex.loop()
         print(timekeeper.get_time())
+        print(bmex.get_position())
+        assert bmex.get_position()['currentQty']  == 10
+
+    def test_BackTest_wait_update(self):
+        bmex = BacktestInterface(settings = self.settings_mock,
+            trades_filename = MEX_BTC_USD, L2orderbook_filename = MEX_OB_BTC_USD)
+        orders =    [{"orderID": "1", "orderQty": 10, "price": 7017.5, "side": "Sell" },
+                    {"orderID": "2", "orderQty": 10, "price": 7017, "side": "Buy" }]
+        bmex.create_bulk_orders(orders)
+        for x in range(20):
+            bmex.wait_update()
+        print(bmex.current_timestamp())
         print(bmex.get_position())
         assert bmex.get_position()['currentQty']  == 10
