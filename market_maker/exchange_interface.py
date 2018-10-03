@@ -19,8 +19,7 @@ CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
 sys.path.append(CODE_DIR)
 
 from market_maker import bitmex
-from market_maker.settings import settings
-print(settings.__file__)
+#from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
 from market_maker import paper_trading
 
@@ -40,37 +39,38 @@ compare_logger = logging.getLogger("paperless")
 
 
 class ExchangeInterface:
-    def __init__(self, dry_run=False):
+    def __init__(self, dry_run=False, settings = None):
         self.dry_run = dry_run
         # let's only use the symbol from the settings
         #if len(sys.argv) > 1:
         #    self.symbol = sys.argv[1]
         #else:
-        #    self.symbol = settings.SYMBOL
-        self.symbol = settings.SYMBOL
-        if settings.BACKTEST:
-            self.bitmex = BitMEXbacktest(base_url=settings.BASE_URL, symbol=self.symbol,
-                                    apiKey=settings.API_KEY, apiSecret=settings.API_SECRET,
-                                    orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
-                                    timeout=settings.TIMEOUT)
+        #    self.symbol = self.settings.SYMBOL
+        self.settings = settings
+        self.symbol = self.settings.SYMBOL
+        if self.settings.BACKTEST:
+            self.bitmex = BitMEXbacktest(base_url=self.settings.BASE_URL, symbol=self.symbol,
+                                    apiKey=self.settings.API_KEY, apiSecret=self.settings.API_SECRET,
+                                    orderIDPrefix=self.settings.ORDERID_PREFIX, postOnly=self.settings.POST_ONLY,
+                                    timeout=self.settings.TIMEOUT)
         else:
-            self.bitmex = bitmex.BitMEX(base_url=settings.BASE_URL, symbol=self.symbol,
-                                    apiKey=settings.API_KEY, apiSecret=settings.API_SECRET,
-                                    orderIDPrefix=settings.ORDERID_PREFIX, postOnly=settings.POST_ONLY,
-                                    timeout=settings.TIMEOUT)
-        if settings.paperless:
-            self.paper = paper_trading.PaperTrading()
+            self.bitmex = bitmex.BitMEX(base_url=self.settings.BASE_URL, symbol=self.symbol,
+                                    apiKey=self.settings.API_KEY, apiSecret=self.settings.API_SECRET,
+                                    orderIDPrefix=self.settings.ORDERID_PREFIX, postOnly=self.settings.POST_ONLY,
+                                    timeout=self.settings.TIMEOUT)
+        if self.settings.paperless:
+            self.paper = paper_trading.PaperTrading(settings=self.settings)
             self.paper.provide_exchange(self.bitmex)
             self.paper.reset()
-        self.orderIDPrefix=settings.ORDERID_PREFIX
+        self.orderIDPrefix=self.settings.ORDERID_PREFIX
         self.rate_limit  = 1
         self.rate_limit_remaining = 0
         self.last_order_time = None
 
     def cancel_order(self, order):
-        if settings.compare is not True:
+        if self.settings.compare is not True:
             tickLog = self.get_instrument()['tickLog']
-            if settings.paperless:
+            if self.settings.paperless:
                 logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
                 return self.paper.cancel_order(order['orderID'])
 
@@ -78,10 +78,10 @@ class ExchangeInterface:
             while True:
                 try:
                     self.bitmex.cancel(order['orderID'])
-                    sleep(settings.API_REST_INTERVAL)
+                    sleep(self.settings.API_REST_INTERVAL)
                 except ValueError as e:
                     logger.info(e)
-                    sleep(settings.API_ERROR_INTERVAL)
+                    sleep(self.settings.API_ERROR_INTERVAL)
                 else:
                     break
         else:
@@ -94,19 +94,19 @@ class ExchangeInterface:
             while True:
                 try:
                     self.bitmex.cancel(order['orderID'])
-                    sleep(settings.API_REST_INTERVAL)
+                    sleep(self.settings.API_REST_INTERVAL)
                 except ValueError as e:
                     logger.info(e)
-                    sleep(settings.API_ERROR_INTERVAL)
+                    sleep(self.settings.API_ERROR_INTERVAL)
                 else:
                     break
 
     def cancel_all_orders(self):
-        if settings.compare is not True:
-            if self.dry_run and settings.paperless == False:
+        if self.settings.compare is not True:
+            if self.dry_run and self.settings.paperless == False:
                 return
 
-            if settings.paperless:
+            if self.settings.paperless:
                 logger.info("Resetting current position. Canceling all existing orders.")
                 return self.paper.cancel_all_orders()
 
@@ -125,7 +125,7 @@ class ExchangeInterface:
 
 
 
-            sleep(settings.API_REST_INTERVAL)
+            sleep(self.settings.API_REST_INTERVAL)
         else:
 
             compare_logger.info("Resetting current position. Canceling all existing orders.")
@@ -144,10 +144,10 @@ class ExchangeInterface:
             if len(orders):
                 self.bitmex.cancel([order['orderID'] for order in orders])
 
-            sleep(settings.API_REST_INTERVAL)
+            sleep(self.settings.API_REST_INTERVAL)
 
     def get_portfolio(self):
-        contracts = settings.CONTRACTS
+        contracts = self.settings.CONTRACTS
         portfolio = {}
         for symbol in contracts:
             position = self.bitmex.position(symbol=symbol)
@@ -203,11 +203,11 @@ class ExchangeInterface:
         return delta
 
     def get_delta(self, symbol=None):
-        if settings.compare is not True:
+        if self.settings.compare is not True:
             if symbol is None:
                 symbol = self.symbol
 
-            if settings.paperless:
+            if self.settings.paperless:
                 return self.paper.current_contract()
 
             return self.get_position(symbol)['currentQty']
@@ -224,12 +224,12 @@ class ExchangeInterface:
         return self.bitmex.instrument(symbol)
 
     def get_margin(self):
-        if settings.compare is not True:
+        if self.settings.compare is not True:
 
-            if self.dry_run and settings.paperless == False:
-                return {'marginBalance': float(settings.DRY_BTC), 'availableFunds': float(settings.DRY_BTC)}
+            if self.dry_run and self.settings.paperless == False:
+                return {'marginBalance': float(self.settings.DRY_BTC), 'availableFunds': float(self.settings.DRY_BTC)}
 
-            if settings.paperless:
+            if self.settings.paperless:
                 return self.paper.get_funds()
 
             return self.bitmex.funds()
@@ -238,11 +238,11 @@ class ExchangeInterface:
             return self.bitmex.funds(), self.paper.get_funds()
 
     def get_orders(self):
-        if settings.compare is not True:
-            if self.dry_run and settings.paperless == False:
+        if self.settings.compare is not True:
+            if self.dry_run and self.settings.paperless == False:
                 return []
 
-            if settings.paperless:
+            if self.settings.paperless:
                 return self.paper.get_orders()
 
             return self.bitmex.open_orders()
@@ -265,11 +265,11 @@ class ExchangeInterface:
         return lowest_sell if lowest_sell else {'price': 2**32}  # ought to be enough for anyone
 
     def get_position(self, symbol=None):
-        if settings.compare is not True:
+        if self.settings.compare is not True:
             if symbol is None:
                 symbol = self.symbol
 
-            if settings.paperless:
+            if self.settings.paperless:
                 return self.paper.get_position(symbol)
 
             return self.bitmex.position(symbol)
@@ -303,15 +303,15 @@ class ExchangeInterface:
 
     def amend_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
-        if settings.paperless:
+        if self.settings.paperless:
             self.paper.cancel_all_orders()
             self.paper.track_orders_created(orders)
-        if settings.compare is not True:
+        if self.settings.compare is not True:
 
-            if self.dry_run and settings.paperless == False:
+            if self.dry_run and self.settings.paperless == False:
                 return orders
 
-            if settings.paperless:
+            if self.settings.paperless:
                 return orders
 
             return self.bitmex.amend_bulk_orders(orders)
@@ -323,11 +323,11 @@ class ExchangeInterface:
         self.last_order_time = self._current_timestamp() 
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
-        if settings.compare is not True:
-            if self.dry_run and settings.paperless == False:
+        if self.settings.compare is not True:
+            if self.dry_run and self.settings.paperless == False:
                 return orders
 
-            if settings.paperless:
+            if self.settings.paperless:
                 self.paper.track_orders_created(orders)
                 return orders 
 
@@ -339,11 +339,11 @@ class ExchangeInterface:
 
     def cancel_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
-        if settings.compare is not True:
-            if self.dry_run and settings.paperless == False:
+        if self.settings.compare is not True:
+            if self.dry_run and self.settings.paperless == False:
                 return orders
 
-            if settings.paperless:
+            if self.settings.paperless:
                 return orders
 
             return self.bitmex.cancel([order['orderID'] for order in orders])
@@ -362,10 +362,10 @@ class ExchangeInterface:
 
     def contracts_this_run(self):
 
-        if self.dry_run and settings.paperless == False and settings.compare is not True:
+        if self.dry_run and self.settings.paperless == False and self.settings.compare is not True:
             self.get_delta()
 
-        if settings.paperless or settings.compare:
+        if self.settings.paperless or self.settings.compare:
            return self.paper.contract_traded_this_run()
 
         return 0
@@ -405,11 +405,11 @@ class ExchangeInterface:
         self.bitmex.wait_update()
         (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
             self.bitmex.rate_limits()
-        if settings.paperless or settings.compare:
+        if self.settings.paperless or self.settings.compare:
             self.paper.loop_functions()
 
     def wait_update(self):         
-        if settings.paperless or settings.compare:
+        if self.settings.paperless or self.settings.compare:
             self.paper.loop_functions()
         (self.rate_limit, self.rate_limit_remaining, self.rate_limit_reset) = \
             self.bitmex.rate_limits()
@@ -421,3 +421,6 @@ class ExchangeInterface:
             print("Unknown Error occurred while running.")
             raise
         return True
+
+    def exit_exchange(self):
+        self.bitmex.exit()
