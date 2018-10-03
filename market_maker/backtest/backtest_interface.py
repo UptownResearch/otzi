@@ -17,7 +17,7 @@ from market_maker.settings import settings
 from market_maker.utils import log, errors
 from market_maker import paper_trading
 from market_maker.backtest.exchangepairaccessor import ExchangePairAccessor
-
+from market_maker.backtest.timekeeper import Timekeeper
 #
 # Helpers
 #
@@ -29,10 +29,18 @@ class BacktestInterface:
     def __init__(self, timekeeper = None, trades_filename = "", L2orderbook_filename = "",
                 name = ""):
         self.paper = paper_trading.PaperTrading()
-        self.accessor = ExchangePairAccessor(timekeeper, trades_filename, L2orderbook_filename, name)        
+        if timekeeper == None:
+            self.timekeeper = Timekeeper()
+            self.own_timekeeper = True
+        else:
+            self.own_timekeeper = False
+            self.timekeeper = timekeeper
+        self.accessor = ExchangePairAccessor(self.timekeeper, trades_filename, L2orderbook_filename, name)        
         self.paper.provide_exchange(self.accessor)
         self.paper.reset()
         self.orderIDPrefix="BT_"
+        if self.own_timekeeper:
+            self.timekeeper.initialize()
 
     def is_warm(self):
         self.accessor.is_warm()
@@ -87,15 +95,14 @@ class BacktestInterface:
         return self.accessor.ticker_data(symbol)
 
     def is_open(self):
-        raise NotImplementedError("is_open not implemented in backtest_interface")
+        return True
 
     def check_market_open(self):
-         raise NotImplementedError("check_market_open not implemented in backtest_interface")
+         return True
 
     def check_if_orderbook_empty(self):
         """This function checks whether the order book is empty"""
-        instrument = self.get_instrument()
-        if instrument['midPrice'] is None:
+        if self.accessor.market_depth("") == []:
             raise errors.MarketEmptyError("Orderbook is empty, cannot quote")
 
     def amend_bulk_orders(self, orders):
@@ -155,6 +162,8 @@ class BacktestInterface:
     def wait_update(self):         
         self.paper.loop_functions()
         try:
+            if self.own_timekeeper:
+                self.timekeeper.increment_time()
             self.accessor.wait_update()
         except EOFError:
             raise
@@ -162,3 +171,6 @@ class BacktestInterface:
             print("Unknown Error occurred while running.")
             raise
         return True
+
+    def exit_exchange(self):
+        pass
