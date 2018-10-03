@@ -13,7 +13,7 @@ CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
 sys.path.append(CODE_DIR)
 
 #load files in our directories
-from market_maker.settings import settings
+#from market_maker.settings import settings
 from market_maker.utils import log, errors
 from market_maker import paper_trading
 from market_maker.backtest.exchangepairaccessor import ExchangePairAccessor
@@ -26,9 +26,10 @@ compare_logger = logging.getLogger("paperless")
 
 
 class BacktestInterface:
-    def __init__(self, timekeeper = None, trades_filename = "", L2orderbook_filename = "",
-                name = ""):
-        self.paper = paper_trading.PaperTrading()
+    def __init__(self, timekeeper = None, trades_filename = "", settings = None,
+                L2orderbook_filename = "", name = ""):
+        self.settings = settings
+        self.paper = paper_trading.PaperTrading(settings = self.settings)
         if timekeeper == None:
             self.timekeeper = Timekeeper()
             self.own_timekeeper = True
