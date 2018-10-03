@@ -3,6 +3,7 @@ import iso8601
 from unittest.mock import MagicMock, patch
 from unittest import TestCase
 import sys
+# Find code directory relative to our directory
 
 
 class Test_Market_Maker_Module(TestCase):
@@ -57,6 +58,7 @@ class Test_Market_Maker_Module(TestCase):
     def test_calls_logging(self):
         import logging
         with patch('logging.getLogger') as mock_method:
+            from os.path import dirname, abspath, join
             from market_maker.market_maker import OrderManager
         #print(self.log.call_count)
         mock_method.assert_called()
@@ -112,20 +114,20 @@ class Test_OrderManager(TestCase):
 
     def test_market_maker_init(self):
         self.orderManager.reset =  MagicMock()
-        self.om = self.orderManager()
+        self.om = self.orderManager(settings= self.settings_mock)
         #let's just check a function is called
         self.om.reset.assert_called()
 
     def test_run_loop_exits_on_EOF(self):
         self.orderManager.reset =  MagicMock()
-        self.om = self.orderManager()
+        self.om = self.orderManager(settings= self.settings_mock)
         self.om.exchange.wait_update = MagicMock(side_effect=EOFError)
         self.om.run_loop()
         self.om.exchange.wait_update.assert_called()
 
     def test_run_loop_through_two_loops(self):
         self.orderManager.reset =  MagicMock()
-        self.om = self.orderManager()
+        self.om = self.orderManager(settings= self.settings_mock)
         self.sanity_check = MagicMock()
         returns = iter([True, True])
         def side_effect(*args, **kwargs):
@@ -145,7 +147,7 @@ class Test_OrderManager(TestCase):
 
     def test_prices_to_orders_create_two_new_orders(self):
         self.orderManager.reset =  MagicMock()
-        self.om = self.orderManager()
+        self.om = self.orderManager(settings= self.settings_mock)
         self.om.exchange.get_instrument.return_value = {'tickLog': 1}
         self.om.exchange.get_orders.return_value = []
         self.om.exchange.get_ticker.return_value = {'last': 6433.5, 'buy': 6433.0, 'sell': 6433.5, 'mid': 6433.0}
@@ -164,7 +166,7 @@ class Test_OrderManager(TestCase):
 
     def test_prices_to_orders_create_one_order(self):
         self.orderManager.reset =  MagicMock()
-        self.om = self.orderManager()
+        self.om = self.orderManager(settings= self.settings_mock)
         self.om.exchange.get_instrument.return_value = {'tickLog': 1}
         self.om.exchange.get_orders.return_value = [{'price': 6430, 'orderQty': 100, 'side': 'Buy', 'theo': 6433.5, 'last_price': 6433.5, 'orderID': 68312, 'coinbase_mid': 6433.25}]
         self.om.exchange.get_ticker.return_value = {'last': 6433.5, 'buy': 6433.0, 'sell': 6433.5, 'mid': 6433.0}
@@ -182,7 +184,7 @@ class Test_OrderManager(TestCase):
 
     def test_prices_to_orders_update_orders(self):
         self.orderManager.reset =  MagicMock()
-        self.om = self.orderManager()
+        self.om = self.orderManager(settings= self.settings_mock)
         self.om.exchange.get_instrument.return_value = {'tickLog': 1}
         self.om.exchange.get_orders.return_value = \
         [{'price': 6430, 'orderQty': 100, 'side': 'Buy', 'theo': 6433.5, 
