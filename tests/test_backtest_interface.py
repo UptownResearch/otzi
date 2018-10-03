@@ -4,6 +4,12 @@ import os
 import os.path
 #from market_maker.backtest.exchangepairaccessor import ExchangePairAccessor
 import iso8601
+# Find code directory relative to our directory
+from os.path import dirname, abspath, join
+import sys
+THIS_DIR = dirname(__file__)
+CODE_DIR = abspath(join(THIS_DIR, '..' ))
+sys.path.append(CODE_DIR)
 from market_maker.backtest.timekeeper import Timekeeper
 from market_maker.backtest.backtest_interface import BacktestInterface
 
@@ -35,7 +41,8 @@ class Test_BacktestInterface(TestCase):
         #http://www.voidspace.org.uk/python/mock/examples.html#mocking-imports-with-patch-dict
         self.settings_mock = MagicMock()
         modules = {
-            'market_maker.settings': self.settings_mock,
+            'market_maker.settings.settings': self.settings_mock,
+            'market_maker.paper_trading.settings': self.settings_mock
         }
         self.settings_mock.DRY_RUN = False
         self.settings_mock.BACKTEST = True
