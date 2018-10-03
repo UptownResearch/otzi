@@ -42,7 +42,7 @@ class BitMEXbacktest(object):
         self.apiKey = apiKey
         self.apiSecret = apiSecret
         if len(orderIDPrefix) > 13:
-            raise ValueError("self.settings.ORDERID_PREFIX must be at most 13 characters long!")
+            raise ValueError("settings.ORDERID_PREFIX must be at most 13 characters long!")
         self.orderIDPrefix = orderIDPrefix
         self.retries = 0  # initialize counter
 
@@ -54,7 +54,7 @@ class BitMEXbacktest(object):
         #self.session.headers.update({'accept': 'application/json'})
         self.headers = None
         # Create websocket for streaming data
-        self.ws = BitMEXwsFromFile(self.settings = settings)
+        self.ws = BitMEXwsFromFile(settings = self.settings)
         self.ws.connect(base_url, symbol, shouldAuth=shouldWSAuth)
 
         self.timeout = timeout

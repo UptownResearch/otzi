@@ -24,18 +24,6 @@ from market_maker.ws.ws_thread import BitMEXWebsocket
 order_logger = logging.getLogger("orders")
 order_logger.setLevel(logging.INFO)
 
-if settings.LOG_ORDERS_TO_FILE: 
-    if settings.OUTPUT_FILENAME:
-        outfilename = settings.OUTPUT_FILENAME
-    else:
-        outfilename = f"{datetime.datetime.now():%Y-%m-%d-%H-%M-%S}" + ".log"
-    order_file = settings.ROOT_LOG_LOCATION + "orders/" + outfilename
-    ofh = logging.FileHandler(order_file)
-    simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
-    ofh.setFormatter(simple_formatter)
-    order_logger.addHandler(ofh)
-
-
 # https://www.bitmex.com/api/explorer/
 class BitMEX(object):
 

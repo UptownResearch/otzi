@@ -52,12 +52,12 @@ class ExchangeInterface:
             self.bitmex = BitMEXbacktest(base_url=self.settings.BASE_URL, symbol=self.symbol,
                                     apiKey=self.settings.API_KEY, apiSecret=self.settings.API_SECRET,
                                     orderIDPrefix=self.settings.ORDERID_PREFIX, postOnly=self.settings.POST_ONLY,
-                                    timeout=self.settings.TIMEOUT)
+                                    settings = self.settings, timeout=self.settings.TIMEOUT)
         else:
             self.bitmex = bitmex.BitMEX(base_url=self.settings.BASE_URL, symbol=self.symbol,
                                     apiKey=self.settings.API_KEY, apiSecret=self.settings.API_SECRET,
                                     orderIDPrefix=self.settings.ORDERID_PREFIX, postOnly=self.settings.POST_ONLY,
-                                    timeout=self.settings.TIMEOUT)
+                                    settings = self.settings, timeout=self.settings.TIMEOUT)
         if self.settings.paperless:
             self.paper = paper_trading.PaperTrading(settings=self.settings)
             self.paper.provide_exchange(self.bitmex)
