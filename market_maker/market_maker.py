@@ -34,7 +34,6 @@ import random
 #import os
 #watched_files_mtimes = [(f, getmtime(f)) for f in self.settings.WATCHED_FILES]
 
-
 #
 # Helpers
 #
@@ -50,9 +49,12 @@ compare_logger.setLevel(logging.WARN)
 #compare_logger.addHandler(fh)
 
 class OrderManager:
-    def __init__(self, orders_logging_file = None, settings = None):
+    def __init__(self, orders_logging_file = None, settings = None, exchange = None):
         self.settings = settings
-        self.exchange = ExchangeInterface(self.settings.DRY_RUN)
+        if exchange == None:
+            self.exchange = ExchangeInterface(self.settings.DRY_RUN)
+        else:
+            self.exchange = exchange
         if not self.settings.BACKTEST:
             self.coinbase = OrderBook(product_id='BTC-USD')
             self.coinbase.start()
@@ -534,7 +536,7 @@ class OrderManager:
         logger.info("Shutting down. All open orders will be cancelled.")
         try:
             self.exchange.cancel_all_orders()
-            self.exchange.bitmex.exit()
+            self.exchange.exit_exchange()
         except errors.AuthenticationError as e:
             logger.info("Was not authenticated; could not cancel orders.")
         except Exception as e:
