@@ -94,8 +94,7 @@ class Test_OrderManager(TestCase):
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
         #from market_maker.utils import log
-        with patch('market_maker.utils.log.setup_custom_logger') as mock_logger:
-            from market_maker.market_maker import OrderManager
+        from market_maker.market_maker import OrderManager
         #from market_maker.market_maker import OrderManager
         #print(sys.modules.items())
         self.orderManager = OrderManager
