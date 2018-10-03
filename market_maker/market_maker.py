@@ -52,7 +52,7 @@ class OrderManager:
     def __init__(self, orders_logging_file = None, settings = None, exchange = None):
         self.settings = settings
         if exchange == None:
-            self.exchange = ExchangeInterface(self.settings.DRY_RUN)
+            self.exchange = ExchangeInterface(self.settings.DRY_RUN, settings=self.settings)
         else:
             self.exchange = exchange
         if not self.settings.BACKTEST:
