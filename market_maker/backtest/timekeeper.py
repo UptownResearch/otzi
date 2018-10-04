@@ -54,7 +54,11 @@ class Timekeeper(object):
             next_timestamp_index = self.top_values.index(min(self.top_values))
             self.current_timestamp = \
                 self.timestamps[next_timestamp_index][self.current_ts_locations[next_timestamp_index]]
-            
+            if self.current_timestamp < last_value:
+                print(self.current_timestamp)
+                print(last_value)
+
+            assert last_value <= self.current_timestamp
             if self.current_ts_locations[next_timestamp_index] + 1 == \
                 len(self.timestamps[next_timestamp_index]):
                 # when we run out of times, remove that index from arrays
@@ -71,5 +75,4 @@ class Timekeeper(object):
     def contribute_times(self, timestamps):
         ''' Add a list of datetime objects to the timekeeper. The timekeeper steps 
         through all times provided via contribute_times.'''
-        if self.still_add:
-            self.timestamps.append(timestamps)
+        self.timestamps.append(timestamps)
