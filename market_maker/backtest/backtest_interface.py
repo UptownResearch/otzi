@@ -36,12 +36,15 @@ class BacktestInterface:
         else:
             self.own_timekeeper = False
             self.timekeeper = timekeeper
-        self.accessor = ExchangePairAccessor(self.timekeeper, trades_filename, L2orderbook_filename, name)        
+        self.accessor = ExchangePairAccessor(self.timekeeper, 
+                    trades_filename, L2orderbook_filename, name=name, settings = self.settings)        
         self.paper.provide_exchange(self.accessor)
         self.paper.reset()
         self.orderIDPrefix="BT_"
         if self.own_timekeeper:
             self.timekeeper.initialize()
+        self.symbol = self.settings.symbol
+        self.last_order_time = None
 
     def is_warm(self):
         self.accessor.is_warm()
@@ -56,10 +59,60 @@ class BacktestInterface:
         return self.paper.cancel_all_orders()
 
     def get_portfolio(self):
-        raise NotImplementedError("get_portfolio not implemented in backtest_interface")
+        contracts = self.settings.CONTRACTS
+        portfolio = {}
+        for symbol in contracts:
+            position = self.paper.get_position(symbol=symbol)
+            instrument = self.accessor.instrument(symbol=symbol)
+
+            if instrument['isQuanto']:
+                future_type = "Quanto"
+            elif instrument['isInverse']:
+                future_type = "Inverse"
+            elif not instrument['isQuanto'] and not instrument['isInverse']:
+                future_type = "Linear"
+            else:
+                raise NotImplementedError("Unknown future type; not quanto or inverse: %s" % instrument['symbol'])
+
+            if instrument['underlyingToSettleMultiplier'] is None:
+                multiplier = float(instrument['multiplier']) / float(instrument['quoteToSettleMultiplier'])
+            else:
+                multiplier = float(instrument['multiplier']) / float(instrument['underlyingToSettleMultiplier'])
+
+            portfolio[symbol] = {
+                "currentQty": float(position['currentQty']),
+                "futureType": future_type,
+                "multiplier": multiplier,
+                "markPrice": float(instrument['markPrice']),
+                "spot": float(instrument['indicativeSettlePrice'])
+            }
+
+        return portfolio
 
     def calc_delta(self):
-        raise NotImplementedError("calc_delta not implemented in backtest_interface")
+
+        """Calculate currency delta for portfolio"""
+        portfolio = self.get_portfolio()
+        spot_delta = 0
+        mark_delta = 0
+        for symbol in portfolio:
+            item = portfolio[symbol]
+            if item['futureType'] == "Quanto":
+                spot_delta += item['currentQty'] * item['multiplier'] * item['spot']
+                mark_delta += item['currentQty'] * item['multiplier'] * item['markPrice']
+            elif item['futureType'] == "Inverse":
+                spot_delta += (item['multiplier'] / item['spot']) * item['currentQty']
+                mark_delta += (item['multiplier'] / item['markPrice']) * item['currentQty']
+            elif item['futureType'] == "Linear":
+                spot_delta += item['multiplier'] * item['currentQty']
+                mark_delta += item['multiplier'] * item['currentQty']
+        basis_delta = mark_delta - spot_delta
+        delta = {
+            "spot": spot_delta,
+            "mark_price": mark_delta,
+            "basis": basis_delta
+        }
+        return delta
 
     def get_delta(self, symbol=None):
         return self.paper.current_contract()
@@ -103,8 +156,10 @@ class BacktestInterface:
 
     def check_if_orderbook_empty(self):
         """This function checks whether the order book is empty"""
-        if self.accessor.market_depth("") == []:
-            raise errors.MarketEmptyError("Orderbook is empty, cannot quote")
+        #let's force an order book
+        while self.accessor.market_depth("") == []:
+            self.timekeeper.increment_time()
+
 
     def amend_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
@@ -120,6 +175,7 @@ class BacktestInterface:
         return orders 
 
     def cancel_bulk_orders(self, orders): 
+        self.last_order_time = self._current_timestamp() 
         for order in orders:
             self.cancel_order(order)
 
@@ -154,7 +210,7 @@ class BacktestInterface:
 
     def current_api_call_timing(self):
         '''calculates the recommended time until next API call'''
-        raise NotImplementedError("current_api_call_timing not implemented in backtest_interface")
+        return 0.0
 
     def loop(self):
         self.accessor.wait_update()       
