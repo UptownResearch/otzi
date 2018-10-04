@@ -140,16 +140,16 @@ ROOT_LOG_LOCATION = os.path.expanduser("~") + "/log/smm/"
 CONTRACTS = ['XBTUSD']
 
 ########################################################################################################################
-# Paperless Tracker
+# PAPERTRADING Tracker
 ########################################################################################################################
-#paperless = True
-paperless = False
+#PAPERTRADING = True
+PAPERTRADING = False
 
 ########################################################################################################################
 # BACKTESTING 
 ########################################################################################################################
 
-#If Backtesting, BACKTEST and paperless must both be True
+#If Backtesting, BACKTEST and PAPERTRADING must both be True
 #BACKTEST = True
 BACKTEST = False
 

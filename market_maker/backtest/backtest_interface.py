@@ -22,7 +22,7 @@ from market_maker.backtest.timekeeper import Timekeeper
 # Helpers
 #
 logger = logging.getLogger("root")
-compare_logger = logging.getLogger("paperless")
+compare_logger = logging.getLogger("PAPERTRADING")
 
 
 class BacktestInterface:

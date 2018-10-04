@@ -15,7 +15,7 @@ sys.path.append(CODE_DIR)
 #from market_maker import market_maker
 from market_maker.utils import constants
 #log orders to file
-pt_logger = logging.getLogger("paperless_orders")
+pt_logger = logging.getLogger("PAPERTRADING_orders")
 pt_logger.setLevel(logging.INFO)
 
 
@@ -57,7 +57,7 @@ class PaperTrading:
         self.exchange = exchange
 
     def track_orders_created(self, order):
-        if self.settings.paperless == False:
+        if self.settings.PAPERTRADING == False:
             return None
         buy_orders = []
         sell_orders = []
@@ -65,7 +65,7 @@ class PaperTrading:
             orders['timestamp'] = self.exchange.current_timestamp().isoformat()
             order_out = {
             'status': 'Created',
-            'paperless' : self.settings.paperless,
+            'PAPERTRADING' : self.settings.PAPERTRADING,
             'type' : 'Paper',
             'data' : orders
             }
@@ -131,7 +131,7 @@ class PaperTrading:
                         orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                         order_out = {
                             'status' : 'Partially Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'agress' : True,
                             'fillprice' : temp["price"],
@@ -150,7 +150,7 @@ class PaperTrading:
                         orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                         order_out = {
                             'status' : 'Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'agress' : True,
                             'fillprice' : temp["price"],
@@ -185,7 +185,7 @@ class PaperTrading:
                         orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                         order_out = {
                             'status' : 'Partially Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'agress' : True,
                             'fillprice' : temp["price"],
@@ -204,7 +204,7 @@ class PaperTrading:
                         orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                         order_out = {
                             'status' : 'Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'agress' : True,
                             'fillprice' : temp["price"],
@@ -259,7 +259,7 @@ class PaperTrading:
                         order['timestamp'] = self.exchange.current_timestamp().isoformat()
                         order_out = {
                         'status' : 'Partially Filled',
-                        'paperless' : self.settings.paperless,
+                        'PAPERTRADING' : self.settings.PAPERTRADING,
                         'type' : 'Paper',
                         'agress' : False,
                         'fillprice' : temp["price"],
@@ -281,7 +281,7 @@ class PaperTrading:
                         order['timestamp'] = self.exchange.current_timestamp().isoformat()
                         order_out = {
                         'status' : 'Filled',
-                        'paperless' : self.settings.paperless,
+                        'PAPERTRADING' : self.settings.PAPERTRADING,
                         'type' : 'Paper',
                         'agress' : False,
                         'fillprice' : temp["price"],
@@ -295,7 +295,7 @@ class PaperTrading:
     
     def simulate_fills_from_trades(self):
         '''Tracks fills based on market trades. (Replaces track_orders.)'''
-        if self.settings.paperless == False:
+        if self.settings.PAPERTRADING == False:
             return None
 
         trades = self.exchange.recent_trades()
@@ -332,7 +332,7 @@ class PaperTrading:
         
     def track_orders(self):
 
-        if self.settings.paperless == False:
+        if self.settings.PAPERTRADING == False:
             return None
 
         trades = self.exchange.recent_trades()
@@ -364,7 +364,7 @@ class PaperTrading:
                             orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                             order_out = {
                             'status' : 'Partially Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'agress' : False,
                             'fillprice' : temp["price"],
@@ -384,7 +384,7 @@ class PaperTrading:
                             orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                             order_out = {
                             'status' : 'Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'agress' : False,
                             'fillprice' : temp["price"],
@@ -411,7 +411,7 @@ class PaperTrading:
                             orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                             order_out = {
                             'status' : 'Partially Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'agress' : False,
                             'fillprice' : temp["price"],
@@ -432,7 +432,7 @@ class PaperTrading:
                             orders['timestamp'] = self.exchange.current_timestamp().isoformat()
                             order_out = {
                             'status' : 'Filled',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Paper',
                             'fillprice' : temp["price"],
                             'fillsize' : orders["orderQty"] - orders["cumQty"], 
@@ -495,7 +495,7 @@ class PaperTrading:
 
     def close_positions(self):
 
-        if self.settings.paperless == False:
+        if self.settings.PAPERTRADING == False:
             return None
 
         auxsum = 0
@@ -540,7 +540,7 @@ class PaperTrading:
 
     def loop_functions(self):
 
-        if self.settings.paperless == False:
+        if self.settings.PAPERTRADING == False:
             return None
 
         #self.track_orders()
@@ -610,7 +610,7 @@ class PaperTrading:
                 self.buy_partially_filled[i]['timestamp'] = self.exchange.current_timestamp().isoformat()
                 order_out = {
                 'status' : 'Cancelled',
-                'paperless' : self.settings.paperless,
+                'PAPERTRADING' : self.settings.PAPERTRADING,
                 'type' : 'Paper',
                 'data' : self.buy_partially_filled[i]
                 }
@@ -627,7 +627,7 @@ class PaperTrading:
                 self.sell_partially_filled[i]['timestamp'] = self.exchange.current_timestamp().isoformat()
                 order_out = {
                 'status' : 'Cancelled',
-                'paperless' : self.settings.paperless,
+                'PAPERTRADING' : self.settings.PAPERTRADING,
                 'type' : 'Paper',
                 'data' : self.sell_partially_filled[i]
                 }

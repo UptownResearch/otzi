@@ -22,7 +22,7 @@ sys.path.append(CODE_DIR)
 #from market_maker import bitmex
 from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
-#from market_maker import paperless_tracker
+#from market_maker import PAPERTRADING_tracker
 from market_maker.exchange_interface import ExchangeInterface
 from market_maker.modifiable_settings import ModifiableSettings
 from market_maker.coinbase.order_book import OrderBook
@@ -40,9 +40,9 @@ import random
 #logger = log.setup_custom_logger('root')
 logger = logging.getLogger("root")
 
-compare_logger = logging.getLogger("paperless")
+compare_logger = logging.getLogger("PAPERTRADING")
 compare_logger.setLevel(logging.WARN)
-#fh = logging.FileHandler("paperless_logger.log")
+#fh = logging.FileHandler("PAPERTRADING_logger.log")
 #formatter = logging.Formatter(
 #    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 #fh.setFormatter(formatter)
@@ -80,7 +80,7 @@ class OrderManager:
         self.running_qty = self.starting_qty
         self.reset()
 
-        self.pt_logger = logging.getLogger("paperless_orders")
+        self.pt_logger = logging.getLogger("PAPERTRADING_orders")
         self.pt_logger.setLevel(logging.INFO)  
         if orders_logging_file is None:
             if self.settings.LOG_ORDERS_TO_FILE: 

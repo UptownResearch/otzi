@@ -326,7 +326,7 @@ class BitMEXWebsocket():
                             elif (message["ordStatus"] == 'Filled') or (message["ordStatus"] == "Canceled"):
                                 order_out = {
                                     'status': message["ordStatus"],
-                                    'paperless' : self.settings.paperless,
+                                    'PAPERTRADING' : self.settings.PAPERTRADING,
                                     'type' : 'Live',
                                     'data' : message
                                 }
@@ -335,7 +335,7 @@ class BitMEXWebsocket():
                     if table == 'order':
                         order_out = {
                             'status': 'OrderReceived',
-                            'paperless' : self.settings.paperless,
+                            'PAPERTRADING' : self.settings.PAPERTRADING,
                             'type' : 'Live',
                             'data' : message['data']
                         }

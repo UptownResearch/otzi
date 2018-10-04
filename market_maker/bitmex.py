@@ -195,7 +195,7 @@ class BitMEX(object):
         }
         order_out = {
             'status': 'Created',
-            'paperless' : self.settings.paperless,
+            'PAPERTRADING' : self.settings.PAPERTRADING,
             'type' : 'Live',
             'data' : postdict
         }
@@ -210,7 +210,7 @@ class BitMEX(object):
         postdict={'orders': orders}
         order_out = {
             'status': 'Amended',
-            'paperless' : self.settings.paperless,
+            'PAPERTRADING' : self.settings.PAPERTRADING,
             'type' : 'Live',
             'data' : postdict
         }
@@ -228,7 +228,7 @@ class BitMEX(object):
         postdict={'orders': orders}
         order_out = {
             'status': 'Created',
-            'paperless' : self.settings.paperless,
+            'PAPERTRADING' : self.settings.PAPERTRADING,
             'type' : 'Live',
             'data' : postdict
         }
@@ -264,7 +264,7 @@ class BitMEX(object):
         }
         order_out = {
             'status': 'Cancelled',
-            'paperless' : self.settings.paperless,
+            'PAPERTRADING' : self.settings.PAPERTRADING,
             'type' : 'Live',
             'data' : postdict
         }
@@ -292,7 +292,7 @@ class BitMEX(object):
                     continue
                 fill_out = {
                 'status': 'Filled',
-                'paperless' : self.settings.paperless,
+                'PAPERTRADING' : self.settings.PAPERTRADING,
                 'type' : 'Live',
                 'data' : postdict
                 }
