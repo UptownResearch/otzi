@@ -13,14 +13,14 @@ bitmex_trades_file = \
 2018-09-01T00:00:03.9880000;2018-09-01T00:00:05.3341976;d8bd9dfb-2ff3-40d3-b2b8-3ba5c8dcf06a;7017;685;SELL'''
 
 timekeeper_parameters = [
-iso8601.parse_date('2018-09-01T00:00:05.3029459'),
-iso8601.parse_date('2018-09-01T00:00:05.3341976')
+iso8601.parse_date('2018-09-01T00:00:03.9320000'),
+iso8601.parse_date('2018-09-01T00:00:03.9880000')
 ]
 
 gdax_trades_file = \
 '''time_exchange;time_coinapi;guid;price;base_amount;taker_side
 2018-09-01T00:00:00.1580000;2018-09-01T00:00:01.0352064;a152778e-841d-4b1b-b4ac-23b0298284dd;7015.01;0.00397244;BUY
-2018-09-01T00:00:00.3680000;2018-09-01T00:00:06.1289766;b0832333-c9d9-4ebe-8ac6-595baa3e8797;7015.01;0.00836892;BUY'''
+2018-09-01T00:00:06.3680000;2018-09-01T00:00:06.1289766;b0832333-c9d9-4ebe-8ac6-595baa3e8797;7015.01;0.00836892;BUY'''
 
 #Deal with end cases
 
@@ -56,13 +56,28 @@ def multiple_calls(file, delimiter):
     return reader_calls.pop(0)(file, delimiter)
 
 class Test_ExchangePairAccessor(TestCase):
+    def setUp(self):
+        """
+        It's patching time
+        """
 
+        #http://www.voidspace.org.uk/python/mock/examples.html#mocking-imports-with-patch-dict
+        self.settings_mock = MagicMock()
+        self.settings_mock.DRY_RUN = False
+        self.settings_mock.BACKTEST = True
+        self.settings_mock.symbol='XBTUSD'
+
+
+    def tearDown(self):
+        """
+        Let's clean up
+        """
 
     @patch('market_maker.backtest.exchangepairaccessor.csv.reader', side_effect=mock_csv_reader_generator(bitmex_trades_file))
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_calls_timekeeper(self,  new_open, reader_function):
         self.timekeeper = MagicMock()
-        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", settings = self.settings_mock)
         print(self.bt._trade_data)
         self.timekeeper.contribute_times.assert_called_with(timekeeper_parameters)
         new_open.assert_called_with("fake.csv")
@@ -71,11 +86,11 @@ class Test_ExchangePairAccessor(TestCase):
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_EPA_check_timestamps_sync(self,  new_open, reader_function):
         self.timekeeper = Timekeeper()
-        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", settings = self.settings_mock)
 
         #now load GDAX
         reader_function.side_effect = mock_csv_reader_generator(gdax_trades_file)
-        self.gdax_accessor = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+        self.gdax_accessor = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", settings = self.settings_mock)
         self.timekeeper.initialize()
         assert self.bt.current_timestamp() == self.gdax_accessor.current_timestamp()
         #increment time and check again
@@ -86,11 +101,11 @@ class Test_ExchangePairAccessor(TestCase):
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_EPA_fail_if_not_warm(self,  new_open, reader_function):
         self.timekeeper = Timekeeper()
-        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", settings = self.settings_mock)
 
         #now load GDAX
         reader_function.side_effect = mock_csv_reader_generator(gdax_trades_file)
-        self.gdax_accessor = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+        self.gdax_accessor = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", settings = self.settings_mock)
         self.timekeeper.initialize()
         self.assertRaises(Exception, self.bt.recent_trades)
 
@@ -98,16 +113,16 @@ class Test_ExchangePairAccessor(TestCase):
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_EPA_price_should_be_correct_at_time(self,  new_open, reader_function):
         self.timekeeper = Timekeeper()
-        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", settings = self.settings_mock)
 
         #now load GDAX
         reader_function.side_effect = mock_csv_reader_generator(gdax_trades_file)
-        self.gdax_accessor = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv")
+        self.gdax_accessor = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", settings = self.settings_mock)
         self.timekeeper.initialize()
         while not(self.bt.is_warm() & self.gdax_accessor.is_warm()):
             self.timekeeper.increment_time()
-        assert self.bt.recent_trades()[-1]['price'] == Decimal('7017')
-        assert self.gdax_accessor.recent_trades()[-1]['price'] == Decimal('7015.01')
+        assert self.bt.recent_trades()[-1]['price'] == 7017
+        assert self.gdax_accessor.recent_trades()[-1]['price'] == 7015.01
 
 
 
@@ -115,7 +130,7 @@ class Test_ExchangePairAccessor(TestCase):
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_EPA_should_return_trades_and_orderbook(self,  new_open, reader_function):
         self.timekeeper = Timekeeper()
-        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", L2orderbook_filename = "fake2.csv")
+        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", L2orderbook_filename = "fake2.csv", settings = self.settings_mock)
 
         self.timekeeper.initialize()
         # increment time to get warm
