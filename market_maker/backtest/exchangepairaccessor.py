@@ -213,9 +213,5 @@ class ExchangePairAccessor(object):
         to_timestamp = self._timekeeper.get_time()
         if self.trades == []:
             raise Exception("Accessing trades before class is warm!")
-        #also check that present_timestamp doesn't exceed timekeeper
-        if self.present_timestamp > to_timestamp:
-            print(self.external_timestamp)
-            print(to_timestamp)
         #check that we haven't updated past the current timekeeper
         assert self.external_timestamp <= to_timestamp
