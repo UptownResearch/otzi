@@ -16,11 +16,13 @@ import uuid
 from os.path import dirname, abspath, join
 import sys
 THIS_DIR = dirname(__file__)
-CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
-sys.path.append(CODE_DIR)
+#CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
+CODE_DIR = abspath(join(THIS_DIR, '..' ))
+sys.path.insert(0, CODE_DIR)
+#sys.path.append(CODE_DIR)
 
 #from market_maker import bitmex
-from market_maker.settings import settings
+#from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
 #from market_maker import PAPERTRADING_tracker
 from market_maker.exchange_interface import ExchangeInterface

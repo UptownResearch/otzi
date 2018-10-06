@@ -31,10 +31,10 @@ class OrderBook(WebsocketClient):
 
     def on_open(self):
         self._sequence = -1
-        print("-- Subscribed to OrderBook! --\n")
+        print("-- Coinbase: Subscribed to OrderBook! --\n")
 
     def on_close(self):
-        print("\n-- OrderBook Socket Closed! --")
+        print("\n-- Coinbase: OrderBook Socket Closed! --")
 
     def reset_book(self):
         self._asks = SortedDict()

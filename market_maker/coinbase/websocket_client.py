@@ -105,11 +105,11 @@ class WebsocketClient(object):
 
     def on_open(self):
         if self.should_print:
-            print("-- Subscribed! --\n")
+            print("-- Coinbase: Subscribed! --\n")
 
     def on_close(self):
         if self.should_print:
-            print("\n-- Socket Closed --")
+            print("\n-- Coinbase: Socket Closed --")
 
     def on_message(self, msg):
         if self.should_print:

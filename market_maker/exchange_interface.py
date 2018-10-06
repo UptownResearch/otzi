@@ -418,7 +418,7 @@ class ExchangeInterface:
         except EOFError:
             raise
         except:
-            print("Unknown Error occurred while running.")
+            logger.error("Unknown error occurred in bitmex.wait_update")
             raise
         return True
 

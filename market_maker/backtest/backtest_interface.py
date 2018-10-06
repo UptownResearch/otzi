@@ -225,7 +225,7 @@ class BacktestInterface:
         except EOFError:
             raise
         except:
-            print("Unknown Error occurred while running.")
+            logger.error("Unknown error occurred in backtest_interface.wait_update")
             raise
         return True
 
