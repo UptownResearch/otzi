@@ -89,6 +89,7 @@ class OrderManager:
         #for handler in handlers:
         #    handler.close()
         #    self.pt_logger.removeHandler(handler)
+        pass
 
     def reset(self):
         self.exchange.cancel_all_orders()
