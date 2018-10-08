@@ -85,10 +85,10 @@ class OrderManager:
 
 
     def close_log_files(self):
-        handlers = self.pt_logger.handlers[:]
-        for handler in handlers:
-            handler.close()
-            self.pt_logger.removeHandler(handler)
+        #handlers = self.pt_logger.handlers[:]
+        #for handler in handlers:
+        #    handler.close()
+        #    self.pt_logger.removeHandler(handler)
 
     def reset(self):
         self.exchange.cancel_all_orders()
