@@ -23,7 +23,7 @@ sys.path.insert(0, CODE_DIR)
 
 #from market_maker import bitmex
 #from market_maker.settings import settings
-from market_maker.utils import log, constants, errors, math
+from market_maker.utils import constants, errors, math
 #from market_maker import PAPERTRADING_tracker
 from market_maker.exchange_interface import ExchangeInterface
 from market_maker.modifiable_settings import ModifiableSettings
@@ -82,35 +82,7 @@ class OrderManager:
         self.running_qty = self.starting_qty
         self.reset()
 
-        self.pt_logger = logging.getLogger("PAPERTRADING_orders")
-        self.pt_logger.setLevel(logging.INFO)  
-        if orders_logging_file is None:
-            if self.settings.LOG_ORDERS_TO_FILE: 
-                if self.settings.OUTPUT_FILENAME:
-                    outfilename = self.settings.OUTPUT_FILENAME
-                else:
-                    outfilename = f"{datetime.now():%Y-%m-%d-%H-%M-%S}" + ".lo"
-                if self.settings.BACKTEST:
-                    directory = "backtest/"
-                else:
-                    directory = ""
 
-                order_file = self.settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + outfilename           
-                ofh = logging.FileHandler(order_file)
-                simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
-                ofh.setFormatter(simple_formatter)
-                self.pt_logger.addHandler(ofh)
-        else:
-            if self.settings.BACKTEST:
-                directory = "backtest/"
-            else:
-                directory = ""
-
-            order_file = self.settings.ROOT_LOG_LOCATION + directory + "pt_orders/" + orders_logging_file           
-            ofh = logging.FileHandler(order_file)
-            simple_formatter = logging.Formatter('%(asctime)s - %(message)s')
-            ofh.setFormatter(simple_formatter)
-            self.pt_logger.addHandler(ofh)
 
     def close_log_files(self):
         handlers = self.pt_logger.handlers[:]
