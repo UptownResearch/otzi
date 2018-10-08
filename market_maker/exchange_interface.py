@@ -20,7 +20,7 @@ sys.path.append(CODE_DIR)
 
 from market_maker import bitmex
 #from market_maker.settings import settings
-from market_maker.utils import log, constants, errors, math
+from market_maker.utils import  constants, errors, math
 from market_maker import paper_trading
 
 from market_maker.backtest.bitmexbacktest import BitMEXbacktest
@@ -39,7 +39,7 @@ compare_logger = logging.getLogger("PAPERTRADING")
 
 
 class ExchangeInterface:
-    def __init__(self, dry_run=False, settings = None):
+    def __init__(self, dry_run=False, settings = None, logger="orders"):
         self.dry_run = dry_run
         # let's only use the symbol from the settings
         #if len(sys.argv) > 1:
@@ -49,17 +49,14 @@ class ExchangeInterface:
         self.settings = settings
         self.symbol = self.settings.SYMBOL
         if self.settings.BACKTEST:
-            self.bitmex = BitMEXbacktest(base_url=self.settings.BASE_URL, symbol=self.symbol,
-                                    apiKey=self.settings.API_KEY, apiSecret=self.settings.API_SECRET,
-                                    orderIDPrefix=self.settings.ORDERID_PREFIX, postOnly=self.settings.POST_ONLY,
-                                    settings = self.settings, timeout=self.settings.TIMEOUT)
+            self.bitmex = BitMEXbacktest( settings = self.settings)
         else:
             self.bitmex = bitmex.BitMEX(base_url=self.settings.BASE_URL, symbol=self.symbol,
                                     apiKey=self.settings.API_KEY, apiSecret=self.settings.API_SECRET,
                                     orderIDPrefix=self.settings.ORDERID_PREFIX, postOnly=self.settings.POST_ONLY,
                                     settings = self.settings, timeout=self.settings.TIMEOUT)
         if self.settings.PAPERTRADING:
-            self.paper = paper_trading.PaperTrading(settings=self.settings)
+            self.paper = paper_trading.PaperTrading(settings=self.settings, logger=logger)
             self.paper.provide_exchange(self.bitmex)
             self.paper.reset()
         self.orderIDPrefix=self.settings.ORDERID_PREFIX
@@ -150,7 +147,10 @@ class ExchangeInterface:
         contracts = self.settings.CONTRACTS
         portfolio = {}
         for symbol in contracts:
-            position = self.bitmex.position(symbol=symbol)
+            if self.settings.PAPERTRADING:
+                position = self.paper.get_position(symbol=symbol)
+            else:
+                position = self.bitmex.position(symbol=symbol)
             instrument = self.bitmex.instrument(symbol=symbol)
 
             if instrument['isQuanto']:

@@ -24,39 +24,23 @@ class BitMEXbacktest(object):
 
     """BitMEX API Connector."""
 
-    def __init__(self, base_url=None, symbol=None, apiKey=None, apiSecret=None,
-                 orderIDPrefix='mm_bitmex_', shouldWSAuth=True, postOnly=False, 
-                 settings = None,timeout=7):
+    def __init__(self, 
+                 orderIDPrefix='mm_bitmex_',   
+                 settings = None, timeout=7):
         """Init connector."""
         #self.logger = logging.getLogger('root')
-        self.base_url = base_url
-        self.symbol = symbol
-        self.postOnly = postOnly
+        self.symbol = settings.SYMBOL
         self.settings = settings
         #Don't need to authenticate, so just set apiKey
         self.apiKey = "Some Key"
-        if (apiKey is None):
-            raise Exception("Please set an API key and Secret to get started. See " +
-                            "https://github.com/BitMEX/sample-market-maker/#getting-started for more information."
-                            )
-        self.apiKey = apiKey
-        self.apiSecret = apiSecret
         if len(orderIDPrefix) > 13:
             raise ValueError("settings.ORDERID_PREFIX must be at most 13 characters long!")
         self.orderIDPrefix = orderIDPrefix
         self.retries = 0  # initialize counter
-
-        # Prepare HTTPS session
-        #self.session = requests.Session()
-        # These headers are always sent
-        #self.session.headers.update({'user-agent': 'liquidbot-' + constants.VERSION})
-        #self.session.headers.update({'content-type': 'application/json'})
-        #self.session.headers.update({'accept': 'application/json'})
         self.headers = None
         # Create websocket for streaming data
         self.ws = BitMEXwsFromFile(settings = self.settings)
-        self.ws.connect(base_url, symbol, shouldAuth=shouldWSAuth)
-
+        self.ws.connect("", self.symbol)
         self.timeout = timeout
 
     def __del__(self):
@@ -84,10 +68,14 @@ class BitMEXbacktest(object):
             symbol = self.symbol
         return self.ws.get_ticker(symbol)
 
-    def instrument(self, symbol):
+    def get_instrument(self, symbol):
         """Get an instrument's details."""
         return self.ws.get_instrument(symbol)
         #raise NotImplementedError
+
+    def instrument(self, symbol):
+        """Get an instrument's details."""
+        return self.ws.get_instrument(symbol)
         
     def instruments(self, filter=None):
         #query = {}
@@ -123,6 +111,7 @@ class BitMEXbacktest(object):
             #send default values
             return (300,300, self.ws.current_timestamp().timestamp()  + 300)
 
+unused = '''
     #
     # Authentication required methods
     #
@@ -243,4 +232,4 @@ class BitMEXbacktest(object):
                      max_retries=None):
         #we are not going to be making any calls
         raise NotImplementedError
-
+'''

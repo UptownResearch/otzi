@@ -26,10 +26,10 @@ compare_logger = logging.getLogger("PAPERTRADING")
 
 
 class BacktestInterface:
-    def __init__(self, timekeeper = None, trades_filename = "", settings = None,
+    def __init__(self, timekeeper = None, trades_filename = "", settings = None, logger=None, 
                 L2orderbook_filename = "", name = ""):
         self.settings = settings
-        self.paper = paper_trading.PaperTrading(settings = self.settings)
+        self.paper = paper_trading.PaperTrading(settings = self.settings, logger=logger)
         if timekeeper == None:
             self.timekeeper = Timekeeper()
             self.own_timekeeper = True

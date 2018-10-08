@@ -15,14 +15,13 @@ sys.path.append(CODE_DIR)
 #from market_maker import market_maker
 from market_maker.utils import constants
 #log orders to file
-pt_logger = logging.getLogger("PAPERTRADING_orders")
-pt_logger.setLevel(logging.INFO)
+
 
 
 
 class PaperTrading:
 
-    def __init__(self, settings=None):
+    def __init__(self, settings=None,  logger="orders"):
         self.settings = settings
         self.buy_orders_created = []
         self.sell_orders_created = []
@@ -37,6 +36,8 @@ class PaperTrading:
         self.auxFunds = 0
         self.position = self.position = {'avgCostPrice': 0, 'avgEntryPrice': 0, 'currentQty': 0, 'symbol': "XBTUSD"}
         self.symbol = self.settings.SYMBOL
+        self.pt_logger = logging.getLogger(logger)
+        self.pt_logger.setLevel(logging.INFO)
 
     def reset(self):
         self.buy_orders_created = []
@@ -69,7 +70,7 @@ class PaperTrading:
             'type' : 'Paper',
             'data' : orders
             }
-            pt_logger.info(json.dumps(order_out))
+            self.pt_logger.info(json.dumps(order_out))
             if orders["side"] == "Buy":
                 buy_orders.append(copy.deepcopy(orders))
             else:
@@ -138,7 +139,7 @@ class PaperTrading:
                             'fillsize' : temp["size"], 
                             'data' : orders
                         }
-                        pt_logger.info(json.dumps(order_out))
+                        self.pt_logger.info(json.dumps(order_out))
                         temp["size"] = 0
                     else:
                         temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
@@ -157,7 +158,7 @@ class PaperTrading:
                             'fillsize' : orders["orderQty"] - orders["cumQty"], 
                             'data' : orders
                         }
-                        pt_logger.info(json.dumps(order_out))
+                        self.pt_logger.info(json.dumps(order_out))
                         break
             else:
                 default_level = {'size':0}
@@ -192,7 +193,7 @@ class PaperTrading:
                             'fillsize' : temp["size"], 
                             'data' : orders
                         }
-                        pt_logger.info(json.dumps(order_out))
+                        self.pt_logger.info(json.dumps(order_out))
                         temp["size"] = 0
                     else:
                         temp["size"] = temp["size"] - (orders["orderQty"] - orders["cumQty"])
@@ -211,7 +212,7 @@ class PaperTrading:
                             'fillsize' : orders["orderQty"] - orders["cumQty"], 
                             'data' : orders
                         }
-                        pt_logger.info(json.dumps(order_out))
+                        self.pt_logger.info(json.dumps(order_out))
                         break
             else:
                 default_level = {'size':0}
@@ -267,7 +268,7 @@ class PaperTrading:
                         'match_order_timestamp': new_temp_timestamp,
                         'data' : order
                         }
-                        pt_logger.info(json.dumps(order_out))
+                        self.pt_logger.info(json.dumps(order_out))
                         temp["size"] = 0
                     else:
                         #fully fill order
@@ -289,7 +290,7 @@ class PaperTrading:
                         'match_order_timestamp': new_temp_timestamp,
                         'data' : order
                         }
-                        pt_logger.info(json.dumps(order_out))
+                        self.pt_logger.info(json.dumps(order_out))
                         break
     
     
@@ -371,7 +372,7 @@ class PaperTrading:
                             'fillsize' : temp["size"], 
                             'data' : orders
                             }
-                            pt_logger.info(json.dumps(order_out))
+                            self.pt_logger.info(json.dumps(order_out))
                             temp["size"] = 0
                         else:
                             #self.insert_to_log("Order Filled - ID:" + str(orders["orderID"]) + " " + orders["side"] + " " + str(orignal_size) + " @ " + str(orders["price"]) + " By Trade: " + str(temp["size"]) + " @ " + str(temp["price"]) + " " + str(temp["timestamp"]))
@@ -391,7 +392,7 @@ class PaperTrading:
                             'fillsize' : orders["orderQty"] - orders["cumQty"], 
                             'data' : orders
                             }
-                            pt_logger.info(json.dumps(order_out))
+                            self.pt_logger.info(json.dumps(order_out))
                             break
 
         for orders in self.sell_partially_filled:
@@ -418,7 +419,7 @@ class PaperTrading:
                             'fillsize' : temp["size"],
                             'data' : orders
                             }
-                            pt_logger.info(json.dumps(order_out))
+                            self.pt_logger.info(json.dumps(order_out))
                             temp["size"] = 0
                             self.timestamp = temp_date
                         else:
@@ -438,7 +439,7 @@ class PaperTrading:
                             'fillsize' : orders["orderQty"] - orders["cumQty"], 
                             'data' : orders
                             }
-                            pt_logger.info(json.dumps(order_out))
+                            self.pt_logger.info(json.dumps(order_out))
                             break
 
         self.from_partially_to_filled()
@@ -614,7 +615,7 @@ class PaperTrading:
                 'type' : 'Paper',
                 'data' : self.buy_partially_filled[i]
                 }
-                pt_logger.info(json.dumps(order_out))
+                self.pt_logger.info(json.dumps(order_out))
                 del self.buy_partially_filled[i]
                 break
 
@@ -631,7 +632,7 @@ class PaperTrading:
                 'type' : 'Paper',
                 'data' : self.sell_partially_filled[i]
                 }
-                pt_logger.info(json.dumps(order_out))
+                self.pt_logger.info(json.dumps(order_out))
                 del self.sell_partially_filled[i]
                 break
 
