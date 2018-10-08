@@ -103,7 +103,8 @@ class BitMEXwsFromFile():
         #Open the log file
         self.logger.info("Opening File: %s" % self.settings.WS_LOG_FILE)
         #modifiable_settings = ModifiableSettings.getInstance()
-        self.lines = open(self.settings.WS_LOG_FILE, 'r').readlines()
+        ws_file = self.settings.WEBSOCKETS_LOG_LOCATION + self.settings.WS_LOG_FILE
+        self.lines = open(ws_file, 'r').readlines()
         self.currentline = 0 
 
         #process first line of file to get an initial timestamp
