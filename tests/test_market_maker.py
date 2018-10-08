@@ -59,7 +59,7 @@ class Test_Market_Maker_Module(TestCase):
         import logging
         with patch('logging.getLogger') as mock_method:
             from os.path import dirname, abspath, join
-            from market_maker.market_maker import OrderManager
+            from market_maker.order_manager import OrderManager
         #print(self.log.call_count)
         mock_method.assert_called()
 
@@ -94,7 +94,7 @@ class Test_OrderManager(TestCase):
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
         #from market_maker.utils import log
-        from market_maker.market_maker import OrderManager
+        from market_maker.order_manager import OrderManager
         #from market_maker.market_maker import OrderManager
         #print(sys.modules.items())
         self.orderManager = OrderManager
