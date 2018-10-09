@@ -83,3 +83,6 @@ class Test_BacktestInterface(TestCase):
         print(bmex.current_timestamp())
         print(bmex.get_position())
         assert bmex.get_position()['currentQty']  == 10
+
+
+

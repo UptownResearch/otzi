@@ -3,6 +3,7 @@ import iso8601
 import os
 #from market_maker.backtest.timekeeper import Timekeeper
 from decimal import Decimal
+import datetime
 
 
 default_instrument =   {
@@ -67,6 +68,12 @@ class ExchangePairAccessor(object):
         self._timekeeper.contribute_times(self._timestamps)
         self._current_trades_location = 0
         self.name = name
+        import time
+        if isinstance(self.settings.EARLY_STOP_TIME, str):
+            self.early_stop_time = datetime.datetime.strptime(self.settings.EARLY_STOP_TIME, "%H:%M:%S.%f0").time()
+        else:
+            self.early_stop_time = None
+        self.reached_EOF = False
         
     #
     # Public methods
@@ -76,8 +83,9 @@ class ExchangePairAccessor(object):
         return self.external_timestamp
 
     def wait_update(self):
+        if self.reached_EOF == True:
+            raise EOFError
         self._make_updates()
-        pass
     
     def is_warm(self):
         self._make_updates()
@@ -98,9 +106,6 @@ class ExchangePairAccessor(object):
         instrument['symbol'] = self.settings.symbol 
         instrument['tickLog'] = Decimal(str(tick_size)).as_tuple().exponent * -1
         return instrument
-
-    def wait_update(self):
-        return True 
     
     def ticker_data(self, symbol=None):
         """Get ticker data."""
@@ -152,13 +157,13 @@ class ExchangePairAccessor(object):
         Returns
         -------
         A list of dicts:
-               {'timestamp': 
-                   datetime.datetime(2018, 9, 1, 0, 0, 5, 302945, 
+               {'time_object': datetime.datetime(2018, 9, 1, 0, 0, 3, 932000, 
                    tzinfo=datetime.timezone.utc),
+                'timestamp': 2018-09-01T00:00:03.9320000,
                 'guid': 'd180ef47-1e99-455a-8e88-be6c0ccc4d6e', 
-                'price': Decimal('7017), 
-                'base_amount': Decimal('2000'), 
-                'taker_side': 'SELL'} # or 'BUY'
+                'price': 7017.0, 
+                'size': 2000.0, 
+                'side': 'SELL'} # or 'BUY'
 
         """
         
@@ -171,17 +176,24 @@ class ExchangePairAccessor(object):
     #
     # Private methods
     #
-        
+
     def _update_to_timestamp(self, timestamp):
         next_trade = self._trade_data[self._current_trades_location]
         while next_trade['time_object'] <= timestamp:
+            if self.early_stop_time is not None:
+                if next_trade['time_object'].time() > self.early_stop_time:
+                    self.reached_EOF = True
+                    break
             #Apply Trade Data
             self.trades.append(next_trade) 
             self.present_timestamp = next_trade['time_object']     
             self._current_trades_location += 1
             if self._current_trades_location == len(self._trade_data):
-                raise EOFError()
+                self.reached_EOF = True
+                break
             next_trade = self._trade_data[self._current_trades_location]
+
+
         
     def update_orderbook(self, timestamp):
         # process self.current_orderbook
@@ -195,6 +207,8 @@ class ExchangePairAccessor(object):
             row_time = iso8601.parse_date(self._date_prefix+self.current_orderbook[1])
 
     def _make_updates(self):
+        if self.reached_EOF:
+            return
         to_timestamp = self._timekeeper.get_time()
         if self.present_timestamp is None or \
             self.external_timestamp is None or \
