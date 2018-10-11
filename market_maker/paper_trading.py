@@ -58,8 +58,6 @@ class PaperTrading:
         self.exchange = exchange
 
     def track_orders_created(self, order):
-        if self.settings.PAPERTRADING == False:
-            return None
         buy_orders = []
         sell_orders = []
         for orders in order:
@@ -296,8 +294,6 @@ class PaperTrading:
     
     def simulate_fills_from_trades(self):
         '''Tracks fills based on market trades. (Replaces track_orders.)'''
-        if self.settings.PAPERTRADING == False:
-            return None
 
         trades = self.exchange.recent_trades()
         #self.timestamp = self.exchange.current_timestamp()
@@ -332,9 +328,6 @@ class PaperTrading:
         self.from_partially_to_filled()        
         
     def track_orders(self):
-
-        if self.settings.PAPERTRADING == False:
-            return None
 
         trades = self.exchange.recent_trades()
 
@@ -496,8 +489,6 @@ class PaperTrading:
 
     def close_positions(self):
 
-        if self.settings.PAPERTRADING == False:
-            return None
 
         auxsum = 0
         #auxpriceBuy = 0
@@ -540,9 +531,6 @@ class PaperTrading:
                 last_insert = i + 1
 
     def loop_functions(self):
-
-        if self.settings.PAPERTRADING == False:
-            return None
 
         #self.track_orders()
         self.simulate_fills_from_trades()

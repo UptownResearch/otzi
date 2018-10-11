@@ -152,8 +152,10 @@ class Test_ExchangePairAccessor(TestCase):
 
         assert self.bt.recent_trades() != []
         assert self.bt.market_depth("") != []
-
-
+        assert isinstance(self.bt.market_depth("")[-1]['size'], float)
+        assert isinstance(self.bt.market_depth("")[-1]['price'], float)
+        assert self.bt.market_depth("")[-1]['side'] in ['Sell', 'Buy']
+ 
     @patch('market_maker.backtest.exchangepairaccessor.csv.reader', side_effect= multiple_calls_generator())
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_EPA_early_stopping(self,  new_open, reader_function):

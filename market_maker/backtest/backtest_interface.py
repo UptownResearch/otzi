@@ -27,7 +27,7 @@ compare_logger = logging.getLogger("PAPERTRADING")
 
 class BacktestInterface:
     def __init__(self, timekeeper = None, trades_filename = "", settings = None, logger=None, 
-                L2orderbook_filename = "", name = ""):
+                L2orderbook_filename = "", name = "",  orderqty_type = 'USD'):
         self.settings = settings
         self.paper = paper_trading.PaperTrading(settings = self.settings, logger=logger)
         if timekeeper == None:
@@ -45,9 +45,14 @@ class BacktestInterface:
             self.timekeeper.initialize()
         self.symbol = self.settings.symbol
         self.last_order_time = None
+        self.name = name
+        self.orderqty_type = orderqty_type
 
     def is_warm(self):
-        self.accessor.is_warm()
+        return self.accessor.is_warm()
+
+    def get_orderqty_type(self):
+        return self.orderqty_type
  
     def cancel_order(self, order):
         tickLog = self.get_instrument()['tickLog']
@@ -157,9 +162,10 @@ class BacktestInterface:
     def check_if_orderbook_empty(self):
         """This function checks whether the order book is empty"""
         #let's force an order book
-        while self.accessor.market_depth("") == []:
+        ob = self.accessor.market_depth("")
+        while ob == []:
             self.timekeeper.increment_time()
-
+            ob = self.accessor.market_depth("")
 
     def amend_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
@@ -168,6 +174,8 @@ class BacktestInterface:
 
 
     def create_bulk_orders(self, orders):
+        if not isinstance(orders, list):
+            raise ValueError("backtest_interface.create_bulk_orders expects a list of orders")
         self.last_order_time = self._current_timestamp() 
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
@@ -195,7 +203,7 @@ class BacktestInterface:
         return self.accessor.current_timestamp().timestamp()
 
     def ok_to_enter_order(self):
-        '''Used to rate limit the placement of orders.'''
+        '''Used to rate limit the placement of orders. Should work in backtest.'''
         if self.last_order_time:
             time_since_last = self._current_timestamp() - self.last_order_time 
             # force a 1 second wait for now

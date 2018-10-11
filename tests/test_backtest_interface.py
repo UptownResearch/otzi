@@ -72,6 +72,14 @@ class Test_BacktestInterface(TestCase):
         print(bmex.get_position())
         assert bmex.get_position()['currentQty']  == 10
 
+    def test_BackTest_is_warm(self):
+        timekeeper = Timekeeper()
+        bmex = BacktestInterface(timekeeper = timekeeper, settings = self.settings_mock,
+            trades_filename = MEX_BTC_USD, L2orderbook_filename = MEX_OB_BTC_USD)
+        timekeeper.initialize()
+        assert bmex.is_warm() is not None
+        assert bmex.is_warm() == True or bmex.is_warm() == False
+
     def test_BackTest_wait_update(self):
         bmex = BacktestInterface(settings = self.settings_mock,
             trades_filename = MEX_BTC_USD, L2orderbook_filename = MEX_OB_BTC_USD)
@@ -84,5 +92,22 @@ class Test_BacktestInterface(TestCase):
         print(bmex.get_position())
         assert bmex.get_position()['currentQty']  == 10
 
+    @patch('market_maker.backtest.exchangepairaccessor.ExchangePairAccessor')
+    @patch('market_maker.paper_trading.PaperTrading')
+    def test_order_qty_type(self, paper, EPA):
+        self.timekeeper = MagicMock()
+        EPA = MagicMock()
+        paper = MagicMock()
+        self.bt = BacktestInterface(settings = self.settings_mock,
+            trades_filename = MEX_BTC_USD, 
+            L2orderbook_filename = MEX_OB_BTC_USD,
+            orderqty_type = 'USD')
+        assert self.bt.get_orderqty_type() == 'USD'
+        self.bt2 = BacktestInterface(settings = self.settings_mock,
+            trades_filename = MEX_BTC_USD, 
+            L2orderbook_filename = MEX_OB_BTC_USD,
+            orderqty_type = 'BTC')
+        assert self.bt2.get_orderqty_type() == 'BTC'
+ 
 
 

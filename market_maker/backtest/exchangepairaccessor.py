@@ -4,7 +4,7 @@ import os
 #from market_maker.backtest.timekeeper import Timekeeper
 from decimal import Decimal
 import datetime
-
+import time
 
 default_instrument =   {
     "symbol": "XBTUSD",    "rootSymbol": "XBT",    "state": "Open",    "typ": "FFWCSX",    "listing": "2016-05-13T12:00:00.000Z",    "front": "2016-05-13T12:00:00.000Z",    "expiry": "",    "settle": "",    "relistInterval": "",    "inverseLeg": "",    "sellLeg": "",    "buyLeg": "",    "optionStrikePcnt": "",    "optionStrikeRound": "",    "optionStrikePrice": "",    "optionMultiplier": "",    "positionCurrency": "USD",    "underlying": "XBT",    "quoteCurrency": "USD",    "underlyingSymbol": "XBT=",    "reference": "BMEX",    "referenceSymbol": ".BXBT",    "calcInterval": "",    "publishInterval": "",    "publishTime": "",    "maxOrderQty": 10000000,    "maxPrice": 1000000,    "lotSize": 1,    "tickSize": 0.5,    "multiplier": -100000000,    "settlCurrency": "XBt",    "underlyingToPositionMultiplier": "",    "underlyingToSettleMultiplier": -100000000,    "quoteToSettleMultiplier": "",    "isQuanto": False,    "isInverse": True,    "initMargin": 0.01,    "maintMargin": 0.005,    "riskLimit": 20000000000,    "riskStep": 10000000000,    "limit": "",    "capped": False,    "taxed": True,    "deleverage": True,    "makerFee": -0.00025,    "takerFee": 0.00075,    "settlementFee": 0,    "insuranceFee": 0,    "fundingBaseSymbol": ".XBTBON8H",    "fundingQuoteSymbol": ".USDBON8H",    "fundingPremiumSymbol": ".XBTUSDPI8H",    "fundingTimestamp": "2018-10-03T20:00:00.000Z",    "fundingInterval": "2000-01-01T08:00:00.000Z",    "fundingRate": 0.0001,    "indicativeFundingRate": 0.0001,    "rebalanceTimestamp": "",    "rebalanceInterval": "",    "openingTimestamp": "2018-10-03T18:00:00.000Z",    "closingTimestamp": "2018-10-03T19:00:00.000Z",    "sessionInterval": "2000-01-01T01:00:00.000Z",    "prevClosePrice": 6451.54,    "limitDownPrice": "",    "limitUpPrice": "",    "bankruptLimitDownPrice": "",    "bankruptLimitUpPrice": "",    "prevTotalVolume": 843248673960,    "totalVolume": 843321480688,    "volume": 72806728,    "volume24h": 1484161853,    "prevTotalTurnover": 11494286280786176,    "totalTurnover": 11495415121904324,    "turnover": 1128841118149,    "turnover24h": 22951738503074,    "homeNotional24h": 229517.38503074567,    "foreignNotional24h": 1484161853,    "prevPrice24h": 6521.5,    "vwap": 6466.6322,    "highPrice": 6549.5,    "lowPrice": 6394,    "lastPrice": 6446.5,    "lastPriceProtected": 6446.5,    "lastTickDirection": "ZeroPlusTick",    "lastChangePcnt": -0.0115,    "bidPrice": 6446,    "midPrice": 6446.25,    "askPrice": 6446.5,    "impactBidPrice": 6446.2064,    "impactMidPrice": 6446.5,    "impactAskPrice": 6446.622,    "hasLiquidity": True,    "openInterest": 735085826,    "openValue": 11404121504564,    "fairMethod": "FundingRate",    "fairBasisRate": 0.1095,    "fairBasis": 0.11,    "fairPrice": 6445.68,    "markMethod": "FairPrice",    "markPrice": 6445.68,    "indicativeTaxRate": 0,    "indicativeSettlePrice": 6445.57,    "optionUnderlyingPrice": "",    "settledPrice": "",    "timestamp": "2018-10-03T18:38:00.759Z"
@@ -68,7 +68,6 @@ class ExchangePairAccessor(object):
         self._timekeeper.contribute_times(self._timestamps)
         self._current_trades_location = 0
         self.name = name
-        import time
         if isinstance(self.settings.EARLY_STOP_TIME, str):
             self.early_stop_time = datetime.datetime.strptime(self.settings.EARLY_STOP_TIME, "%H:%M:%S.%f0").time()
         else:
@@ -141,12 +140,12 @@ class ExchangePairAccessor(object):
             bid_size  = row[4*x + 5]
             if ask_price != "":
                 orderbook1 = { 'side': 'Sell',
-                               'size': int(ask_size),
+                               'size': float(ask_size),
                                'price': float(ask_price)}
                 orderbook_snapshot.append(orderbook1)
             if bid_price != "":
                 orderbook2 = { 'side': 'Buy',
-                               'size': int(bid_size),
+                               'size': float(bid_size),
                                'price': float(bid_price)}
                 orderbook_snapshot.append(orderbook2)
         return orderbook_snapshot
