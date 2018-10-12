@@ -102,7 +102,7 @@ class OrderManager:
 
     def print_status(self):
         #don't print status if backtesting
-        if self.settings.backtest is True:
+        if self.settings.BACKTEST is True:
             return
         if self.settings.compare is not True:
             """Print the current MM status."""

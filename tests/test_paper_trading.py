@@ -426,3 +426,5 @@ class Test_Paper_Trading(TestCase):
         assert ptrading.position["currentQty"] == -1
         assert len(ptrading.get_orders()) == 2
 
+        # Need a test of orders entered crossing the market!
+

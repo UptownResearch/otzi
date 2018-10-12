@@ -114,7 +114,7 @@ class ExchangePairAccessor(object):
             ticker = {
                 'buy'  : current_ob[1]['price'],
                 'sell' : current_ob[0]['price'],
-                'mid'  : (current_ob[0]['price'] + current_ob[1]['price'])/2
+                'mid'  : float(current_ob[0]['price'] + current_ob[1]['price'])/2
             }
             return ticker
         else:

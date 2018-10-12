@@ -178,7 +178,6 @@ class Test_ExchangePairAccessor(TestCase):
         print(saved_time)
         assert saved_time.time() <= end_time
 
-
     @patch('market_maker.backtest.exchangepairaccessor.csv.reader', side_effect= multiple_calls_generator())
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_EPA_values_still_accessible_after_EOF(self,  new_open, reader_function):
@@ -203,5 +202,3 @@ class Test_ExchangePairAccessor(TestCase):
         #Call wait_update, should raise EOFError
         self.assertRaises(EOFError, self.bt.wait_update)
 
-
- 
