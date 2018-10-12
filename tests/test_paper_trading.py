@@ -72,7 +72,7 @@ class Test1(ExchangeInterface):
 
 
 
-class Test_Paperless_Tracker(TestCase):
+class Test_Paper_Trading(TestCase):
 
     def setUp(self):
         """
@@ -83,6 +83,7 @@ class Test_Paperless_Tracker(TestCase):
         self.settings_mock = MagicMock()
         self.settings_mock.settings.BACKTEST.return_value = True
         self.settings_mock.settings.paperless = True
+        self.settings_mock.settings.SYMBOL = "XBTUSD"
         self.exchange_mock = MagicMock()
         modules = {
             'market_maker.settings': self.settings_mock
@@ -91,10 +92,10 @@ class Test_Paperless_Tracker(TestCase):
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
         #from my_module import MyModule
-        #from market_maker.paperless_tracker import paperless_tracker
-        #self.paperless_tracker = paperless_tracker
-        from market_maker.paperless_tracker import paperless_tracker
-        self.paperless_tracker = paperless_tracker
+        #from market_maker.paper_trading import paper_trading
+        #self.paper_trading = paper_trading
+        from market_maker.paper_trading import PaperTrading
+        self.paper_trading = PaperTrading
 
 
     def tearDown(self):
@@ -104,46 +105,46 @@ class Test_Paperless_Tracker(TestCase):
 
         self.module_patcher.stop()
 
-    def test_get_paperless_tracker(self):
-        pp_tracker = self.paperless_tracker.getInstance()
-        assert pp_tracker is not None
+    def test_get_paper_trading(self):
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        assert ptrading is not None
 
     def test_rest_order_in_book(self):
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"}]
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         Test1Ei = Test1()
-        pp_tracker.provide_exchange(Test1Ei)
-        pp_tracker.track_orders_created(order_rest_in_book)
-        print(pp_tracker.buy_orders_created)
-        assert len(pp_tracker.buy_partially_filled)  == 1
-        assert pp_tracker.buy_partially_filled[0]['price'] == 5000.5
-        assert pp_tracker.buy_partially_filled[0]['orderQty'] == 100
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        print(ptrading.buy_orders_created)
+        assert len(ptrading.buy_partially_filled)  == 1
+        assert ptrading.buy_partially_filled[0]['price'] == 5000.5
+        assert ptrading.buy_partially_filled[0]['orderQty'] == 100
 
     def test_add_and_remove_order(self):
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy", "orderID":2}]
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         Test1Ei = Test1()
-        pp_tracker.provide_exchange(Test1Ei)
-        pp_tracker.track_orders_created(order_rest_in_book)
-        assert len(pp_tracker.buy_orders_created)  == 1
-        orders = pp_tracker.get_orders()
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        assert len(ptrading.buy_orders_created)  == 1
+        orders = ptrading.get_orders()
         for order in orders:
-        	pp_tracker.cancel_order(order["orderID"])
-        assert len(pp_tracker.get_orders())  == 0
+        	ptrading.cancel_order(order["orderID"])
+        assert len(ptrading.get_orders())  == 0
 
     def test_add_resting_but_not_filling(self):
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"}]
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         Test1Ei = Test1()
-        pp_tracker.provide_exchange(Test1Ei)
-        pp_tracker.track_orders_created(order_rest_in_book)
-        #pp_tracker.loop_functions()
-        pp_tracker.simulate_fills_from_trades()
-        pp_tracker.close_positions()
-        assert pp_tracker.filled == []
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        #ptrading.loop_functions()
+        ptrading.simulate_fills_from_trades()
+        ptrading.close_positions()
+        assert ptrading.filled == []
 
     def test_getting_filled_after_several_loops(self):
         class Test2(ExchangeInterface):   
@@ -159,20 +160,20 @@ class Test_Paperless_Tracker(TestCase):
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"}]
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         Test2Ei = Test2()
-        pp_tracker.provide_exchange(Test2Ei)
-        pp_tracker.track_orders_created(order_rest_in_book)
+        ptrading.provide_exchange(Test2Ei)
+        ptrading.track_orders_created(order_rest_in_book)
         counter = 0
         while counter < 12:
             counter += 1
             for trade in trades:
                 trade["trdMatchID"] = str(counter)
-            pp_tracker.simulate_fills_from_trades()
-            pp_tracker.close_positions()
-        assert pp_tracker.buy_partially_filled == []
-        assert len(pp_tracker.filled) == 1
+            ptrading.simulate_fills_from_trades()
+            ptrading.close_positions()
+        assert ptrading.buy_partially_filled == []
+        assert len(ptrading.filled) == 1
 
     def test_buy_fills_with_multiple_orders(self):
         orders = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"},
@@ -201,15 +202,15 @@ class Test_Paperless_Tracker(TestCase):
                 return trades 
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         TestC = Test3()
-        pp_tracker.provide_exchange(TestC)
-        pp_tracker.track_orders_created(orders)
-        pp_tracker.simulate_fills_from_trades()
-        pp_tracker.close_positions()
-        assert pp_tracker.position["currentQty"] == 150
-        assert len(pp_tracker.get_orders()) == 2
+        ptrading.provide_exchange(TestC)
+        ptrading.track_orders_created(orders)
+        ptrading.simulate_fills_from_trades()
+        ptrading.close_positions()
+        assert ptrading.position["currentQty"] == 150
+        assert len(ptrading.get_orders()) == 2
 
     def test_sell_fills_with_multiple_orders(self):
         orders = [{'price': 5001, 'orderQty': 100, 'side': "Sell"},
@@ -238,15 +239,15 @@ class Test_Paperless_Tracker(TestCase):
                 return ltrades
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         TestC = Test3()
-        pp_tracker.provide_exchange(TestC)
-        pp_tracker.track_orders_created(orders)
-        pp_tracker.simulate_fills_from_trades()
-        pp_tracker.close_positions()
-        assert pp_tracker.position["currentQty"] == -150
-        assert len(pp_tracker.get_orders()) == 2
+        ptrading.provide_exchange(TestC)
+        ptrading.track_orders_created(orders)
+        ptrading.simulate_fills_from_trades()
+        ptrading.close_positions()
+        assert ptrading.position["currentQty"] == -150
+        assert len(ptrading.get_orders()) == 2
 
 
     def test_no_fills_from_the_past(self):
@@ -282,38 +283,39 @@ class Test_Paperless_Tracker(TestCase):
                 return ltrades
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         TestC = Test3()
-        pp_tracker.provide_exchange(TestC)
-        pp_tracker.track_orders_created(orders)
-        pp_tracker.simulate_fills_from_trades()
-        pp_tracker.close_positions()
-        assert pp_tracker.position["currentQty"] == -150
-        assert len(pp_tracker.get_orders()) == 2
+        ptrading.provide_exchange(TestC)
+        ptrading.track_orders_created(orders)
+        ptrading.simulate_fills_from_trades()
+        ptrading.close_positions()
+        assert ptrading.position["currentQty"] == -150
+        assert len(ptrading.get_orders()) == 2
 
 
-    def test_fill_deeper_in_book(self):
-        orders = [{'price': 5001, 'orderQty': 100, 'side': "Sell"},
-                        {'price': 5001.5, 'orderQty': 100, 'side': "Sell"},
-                       {'price': 5002, 'orderQty': 100, 'side': "Sell"}]
+    def test_no_fills_from_the_past_sells(self):
+        orders = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"},
+                        {'price': 5000.0, 'orderQty': 100, 'side': "Buy"},
+                       {'price': 4999.5, 'orderQty': 100, 'side': "Buy"}]
+        # Trades First trades should not result in any fills (its in the past)
         ltrades = [ {'timestamp': '2018-08-09T20:11:54.000Z',
             'symbol': 'XBTUSD',
-            'side': 'Buy',
+            'side': 'Sell',
             'size': 1100,
-            'price': 5001.5,
+            'price': 5000.5,
             'trdMatchID': "asasffdvvvrhrgdinrv"},
         {'timestamp': '2018-08-09T20:11:57.000Z',
             'symbol': 'XBTUSD',
-            'side': 'Buy',
+            'side': 'Sell',
             'size': 1100,
-            'price': 5001,
+            'price': 5000.5,
             'trdMatchID': "aevninaeirinrv"},
             {'timestamp': '2018-08-09T20:11:56.000Z',
             'symbol': 'XBTUSD',
             'side': 'Buy',
             'size': 1050,
-            'price': 5001.5,
+            'price': 5000.0,
             'trdMatchID': "asdfasdfnneef"}]
         class Test3(ExchangeInterface):   
             def __init__(self):
@@ -326,13 +328,101 @@ class Test_Paperless_Tracker(TestCase):
                 return ltrades
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
-        pp_tracker = self.paperless_tracker.getInstance()
-        pp_tracker.reset()
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
         TestC = Test3()
-        pp_tracker.provide_exchange(TestC)
-        pp_tracker.track_orders_created(orders)
-        pp_tracker.simulate_fills_from_trades()
-        pp_tracker.close_positions()
-        assert pp_tracker.position["currentQty"] == -150
-        assert len(pp_tracker.get_orders()) == 2
+        ptrading.provide_exchange(TestC)
+        ptrading.track_orders_created(orders)
+        ptrading.simulate_fills_from_trades()
+        ptrading.close_positions()
+        assert ptrading.position["currentQty"] == 150
+        assert len(ptrading.get_orders()) == 2
+
+
+    def test_fill_deeper_in_book(self):
+        orders = [{'price': 5000, 'orderQty': 100, 'side': "Buy"},
+                        {'price': 5001.5, 'orderQty': 100, 'side': "Sell"}]
+        
+        ltrades = [ {'timestamp': '2018-08-09T20:11:52.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Sell',
+            'size': 1100,
+            'price': 5000.5,
+            'trdMatchID': "arbrtbrthdhdinrv"},
+        {'timestamp': '2018-08-09T20:11:54.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Buy',
+            'size': 1100,
+            'price': 5001.5,
+            'trdMatchID': "asasffdvvvrhrgdinrv"},
+        {'timestamp': '2018-08-09T20:11:57.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Buy',
+            'size': 1000,
+            'price': 5001,
+            'trdMatchID': "aevninaeirinrv"},
+            {'timestamp': '2018-08-09T20:11:57.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Buy',
+            'size': 500,
+            'price': 5001.5,
+            'trdMatchID': "gmhmhjrrgef"},
+            {'timestamp': '2018-08-09T20:11:57.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Buy',
+            'size': 550,
+            'price': 5001.5,
+            'trdMatchID': "wetrwtasccscsnneef"},
+            {'timestamp': '2018-08-09T20:11:57.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Buy',
+            'size': 25,
+            'price': 5001.5,
+            'trdMatchID': "xvbcbbmoinjnneef"}, 
+            {'timestamp': '2018-08-09T20:11:58.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Sell',
+            'size': 1000,
+            'price': 5000.5,
+            'trdMatchID': "rtyytjmoinjnneef"}, 
+            {'timestamp': '2018-08-09T20:11:58.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Sell',
+            'size': 500,
+            'price': 5000.0,
+            'trdMatchID': "uliomoinjnneef"},
+            {'timestamp': '2018-08-09T20:11:58.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Sell',
+            'size': 550,
+            'price': 5000.0,
+            'trdMatchID': "zsfdzfmoinjnneef"},
+            {'timestamp': '2018-08-09T20:11:58.000Z',
+            'symbol': 'XBTUSD',
+            'side': 'Sell',
+            'size': 24,
+            'price': 5000.0,
+            'trdMatchID': "qevrkmoinjnneef"},]
+        class Test3(ExchangeInterface):   
+            def __init__(self):
+                self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
+            def current_timestamp(self):
+                return self.timestamp
+            def market_depth(self, symbol):
+                return orderbook
+            def recent_trades(self):
+                return ltrades
+            def updated_timestamp(self, timestamp):
+                self.timestamp = timestamp
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
+        TestC = Test3()
+        ptrading.provide_exchange(TestC)
+        ptrading.track_orders_created(orders)
+        ptrading.simulate_fills_from_trades()
+        ptrading.close_positions()
+        print(ptrading.position["currentQty"])
+        print(ptrading.get_orders())
+        assert ptrading.position["currentQty"] == -1
+        assert len(ptrading.get_orders()) == 2
 

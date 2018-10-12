@@ -112,6 +112,7 @@ class PaperTrading:
                 self.sell_partially_filled.append(orders)
             return
 
+        # Market Orders Code - CURRENTLY UNUSED!!!!
         for orders in buy_orders:
             self.random_base += 1
             #orders["orderID"] = self.random_base
@@ -256,6 +257,7 @@ class PaperTrading:
                         order["leavesQty"] = order["orderQty"] - order["cumQty"]
                         self.timestamp = temp["timestamp"]
                         order['timestamp'] = self.exchange.current_timestamp().isoformat()
+                        order['remaining_at_level'] = 0
                         order_out = {
                         'status' : 'Partially Filled',
                         'PAPERTRADING' : self.settings.PAPERTRADING,
@@ -316,6 +318,8 @@ class PaperTrading:
             self.seen_trades.add(tradeID)
         if len(filtered_trades)==0:
             return
+        # Note that filling buy orders and sell orders seperately can cause fill prints to be 
+        # printed non-chronologically 
         self._fill_orders_queued(self.buy_partially_filled, filtered_trades)
         self._fill_orders_queued(self.sell_partially_filled, filtered_trades)
         #self._fill_orders(self.buy_partially_filled, filtered_trades)
