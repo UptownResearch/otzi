@@ -163,9 +163,12 @@ class BacktestInterface:
         """This function checks whether the order book is empty"""
         #let's force an order book
         ob = self.accessor.market_depth("")
-        while ob == []:
-            self.timekeeper.increment_time()
-            ob = self.accessor.market_depth("")
+        if self.own_timekeeper:
+            while ob == []:
+                self.timekeeper.increment_time()
+                ob = self.accessor.market_depth("")
+        else:
+            return ob
 
     def amend_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
