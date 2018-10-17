@@ -18,7 +18,7 @@ class ExchangePairAccessor(object):
                 name = "", settings = None):
         """Init BacktestExchangePair."""
         self.settings = settings
-        self.symbol = self.settings.symbol
+        self.symbol = self.settings.SYMBOL
         # variables holding data dependent on current timestamp
         # timestamp tracking location of last read data line
         self.present_timestamp = None
@@ -39,10 +39,20 @@ class ExchangePairAccessor(object):
         #store the date prefix for the orderbook data
         self._date_prefix = unprocessed_trade_data[0][1][0:11]
         previous_timestamp = None
+        start_time_present = False
+        if isinstance(self.settings.get('START_TIME', None), str):
+            self.start_time = datetime.datetime.strptime(self.settings.START_TIME, "%H:%M:%S.%f0").time()
+        else:
+            self.start_time = None
+
         for row in unprocessed_trade_data:
             # Use exchange timestamps because files are ordered on them
             # using local timestamps would require re-ordering the data file
             timestamp = iso8601.parse_date(row[0])
+            if self.start_time is not None:
+                if timestamp.time() < self.start_time:
+                    continue
+
             if previous_timestamp is None or previous_timestamp != timestamp:
                 self._timestamps.append(timestamp)
             # 'time_coinapi', 'price', 'base_amount', 'taker_side'
@@ -159,13 +169,12 @@ class ExchangePairAccessor(object):
                {'time_object': datetime.datetime(2018, 9, 1, 0, 0, 3, 932000, 
                    tzinfo=datetime.timezone.utc),
                 'timestamp': 2018-09-01T00:00:03.9320000,
-                'guid': 'd180ef47-1e99-455a-8e88-be6c0ccc4d6e', 
+                'trdMatchID': 'd180ef47-1e99-455a-8e88-be6c0ccc4d6e', 
                 'price': 7017.0, 
                 'size': 2000.0, 
                 'side': 'SELL'} # or 'BUY'
 
         """
-        
         self._make_updates()
         #fail if trades requested before warm
         self._fail_if_not_warm()
