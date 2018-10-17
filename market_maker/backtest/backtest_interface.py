@@ -14,7 +14,7 @@ sys.path.append(CODE_DIR)
 
 #load files in our directories
 #from market_maker.settings import settings
-from market_maker.utils import log, errors
+from market_maker.utils import errors
 from market_maker import paper_trading
 from market_maker.backtest.exchangepairaccessor import ExchangePairAccessor
 from market_maker.backtest.timekeeper import Timekeeper

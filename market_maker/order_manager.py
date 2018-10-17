@@ -26,7 +26,6 @@ sys.path.insert(0, CODE_DIR)
 from market_maker.utils import constants, errors, math
 #from market_maker import PAPERTRADING_tracker
 from market_maker.exchange_interface import ExchangeInterface
-from market_maker.modifiable_settings import ModifiableSettings
 from market_maker.coinbase.order_book import OrderBook
 
 import logging

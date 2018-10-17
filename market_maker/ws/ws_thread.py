@@ -17,9 +17,7 @@ THIS_DIR = dirname(__file__)
 CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
 sys.path.append(CODE_DIR)
 
-from market_maker.settings import settings
 from market_maker.auth.APIKeyAuth import generate_nonce, generate_signature
-from market_maker.utils.log import setup_custom_logger
 from market_maker.utils.math import toNearest
 from future.utils import iteritems
 from future.standard_library import hooks
@@ -223,7 +221,7 @@ class BitMEXWebsocket():
                                          header=self.__get_auth()
                                          )
 
-        setup_custom_logger('websocket', log_level=self.settings.LOG_LEVEL)
+        #setup_custom_logger('websocket', log_level=self.settings.LOG_LEVEL)
         self.wst = threading.Thread(target=lambda: self.ws.run_forever(sslopt=sslopt_ca_certs))
         self.wst.daemon = True
         self.wst.start()

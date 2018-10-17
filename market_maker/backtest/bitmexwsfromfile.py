@@ -15,10 +15,7 @@ THIS_DIR = dirname(__file__)
 CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
 sys.path.append(CODE_DIR)
 
-from market_maker.settings import settings
-from market_maker.modifiable_settings import ModifiableSettings
 from market_maker.auth.APIKeyAuth import generate_nonce, generate_signature
-from market_maker.utils.log import setup_custom_logger
 from market_maker.utils.math import toNearest
 from future.utils import iteritems
 from future.standard_library import hooks
@@ -40,13 +37,12 @@ class BitMEXwsFromFile():
         self.messagelogger = logging.getLogger('bitmex_ws')
         self.last_action = None
         self.__reset()
-        self.modifiable_settings = ModifiableSettings.getInstance()
         try:
-            self.end_time = iso8601.parse_date(self.modifiable_settings.END_TIME)
+            self.end_time = iso8601.parse_date(self.settings.END_TIME)
         except:
             self.end_time = None
         try:
-            self.start_time = iso8601.parse_date(self.modifiable_settings.START_TIME)        
+            self.start_time = iso8601.parse_date(self.settings.START_TIME)        
         except:
             self.start_time = None   
         
@@ -121,7 +117,7 @@ class BitMEXwsFromFile():
         if self.start_time:
             parse = self.lines[self.currentline].split(' - ')
             current_time = iso8601.parse_date(parse[0])
-            print( "Start Time: %s  Current Websocket Time: %s" % (self.modifiable_settings.START_TIME, parse[0]))
+            print( "Start Time: %s  Current Websocket Time: %s" % (self.settings.START_TIME, parse[0]))
             if current_time > self.start_time:
                 self.logger.warn("Start Time may be misconfigured!")
             while current_time < self.start_time:
