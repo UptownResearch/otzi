@@ -6,6 +6,7 @@ from market_maker.backtest.exchangepairaccessor import ExchangePairAccessor
 import iso8601
 from market_maker.backtest.timekeeper import Timekeeper
 from decimal import Decimal
+import datetime        
 
 bitmex_trades_file = \
 '''time_exchange;time_coinapi;guid;price;base_amount;taker_side
@@ -159,7 +160,6 @@ class Test_ExchangePairAccessor(TestCase):
     @patch('market_maker.backtest.exchangepairaccessor.csv.reader', side_effect= multiple_calls_generator())
     @patch('market_maker.backtest.exchangepairaccessor.open')
     def test_EPA_early_stopping(self,  new_open, reader_function):
-        import datetime        
         end_time = datetime.time(23, 59, 53, 978000) 
         self.settings_mock.EARLY_STOP_TIME = "23:59:53.9780000"
         self.timekeeper = Timekeeper()
@@ -202,3 +202,16 @@ class Test_ExchangePairAccessor(TestCase):
         #Call wait_update, should raise EOFError
         self.assertRaises(EOFError, self.bt.wait_update)
 
+    @patch('market_maker.backtest.exchangepairaccessor.csv.reader', side_effect= multiple_calls_generator())
+    @patch('market_maker.backtest.exchangepairaccessor.open')
+    def test_EPA_starts_after_start_time(self,  new_open, reader_function):
+        self.timekeeper = Timekeeper()
+        start_time = datetime.time(23, 59, 53, 988000)  
+        self.settings_mock.get.return_value = "23:59:53.988000"
+        self.settings_mock.START_TIME = "23:59:53.988000"
+        self.bt = ExchangePairAccessor(timekeeper = self.timekeeper, trades_filename = "fake.csv", L2orderbook_filename = "fake2.csv", settings = self.settings_mock)
+        print(self.settings_mock.START_TIME is not None)
+        self.timekeeper.initialize()
+        # increment time to get warm
+        print(self.bt.current_timestamp())
+        assert self.bt.current_timestamp().time() >= start_time
