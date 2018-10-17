@@ -121,6 +121,17 @@ class Test_Paper_Trading(TestCase):
         assert ptrading.buy_partially_filled[0]['price'] == 5000.5
         assert ptrading.buy_partially_filled[0]['orderQty'] == 100
 
+    def test_crossing_non_agress_orders_should_be_cancelled(self):
+        order_rest_in_book = [{'price': 5001, 'orderQty': 100, 'side': "Buy"}]
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
+        Test1Ei = Test1()
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        print(ptrading.buy_orders_created)
+        assert len(ptrading.buy_partially_filled)  == 0
+
+
     def test_add_and_remove_order(self):
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy", "orderID":2}]
         ptrading = self.paper_trading(settings=self.settings_mock)

@@ -57,6 +57,19 @@ class PaperTrading:
     def provide_exchange(self, exchange):
         self.exchange = exchange
 
+    def exchange_cancels_order(self, order):
+        order_out = {
+            'status' : 'Cancelled',
+            'PAPERTRADING' : self.settings.PAPERTRADING,
+            'type' : 'Paper',
+            'agress' : False,
+            'text': 'Cancelled for crossing book.',
+            'data' : order
+        }
+        self.pt_logger.info(json.dumps(order_out))
+
+
+
     def track_orders_created(self, order):
         buy_orders = []
         sell_orders = []
@@ -101,7 +114,11 @@ class PaperTrading:
                 orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                 orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
-                self.buy_partially_filled.append(orders)
+                if orders['price'] in order_table and \
+                order_table[orders['price']]['side'] == 'Sell':
+                    self.exchange_cancels_order(orders)
+                else:
+                    self.buy_partially_filled.append(orders)
 
             for orders in sell_orders:
                 self.random_base += 1
@@ -109,7 +126,12 @@ class PaperTrading:
                 orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
                 orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
                 orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
-                self.sell_partially_filled.append(orders)
+                if orders['price'] in order_table and \
+                    order_table[orders['price']]['side'] == 'Buy':
+                    self.exchange_cancels_order(orders)
+                else:
+                    self.sell_partially_filled.append(orders)
+
             return
 
         # Market Orders Code - CURRENTLY UNUSED!!!!
@@ -311,6 +333,15 @@ class PaperTrading:
             tradeID = trade["trdMatchID"]
             if not (tradeID in self.seen_trades):
                 filtered_trades.append(trade)
+                if self.settings.LOG_TRADES_TO_ORDERS:
+                    new_keys = ['timestamp','trdMatchID', 'price', 'size', 'side']
+                    _trade = { key: trade[key] for key in new_keys}
+                    trade_out = {
+                            'status' : 'Traded',
+                            'data' : _trade
+                    }
+                    self.pt_logger.info(json.dumps(trade_out))
+
                 #if trade['side'] == "Sell":
                 #    sell.append(trade)
                 #else:
