@@ -103,16 +103,20 @@ class ExchangePairAccessor(object):
      
     def instrument(self, symbol=None):
         instrument = default_instrument 
-        tick_size = 0.5
-        instrument['symbol'] = self.settings.symbol  
+        if symbol is None:
+            symbol = self.settings.SYMBOL 
+        tick_size = self.settings.TICK_SIZE[symbol]
+        instrument['symbol'] = symbol
         instrument['tickLog'] = Decimal(str(tick_size)).as_tuple().exponent * -1
         return instrument
 
     def get_instrument(self, symbol=None):
         '''Only really used to provide ticklog '''
         instrument = default_instrument
-        tick_size = 0.5
-        instrument['symbol'] = self.settings.symbol 
+        if symbol is None:
+            symbol = self.settings.SYMBOL 
+        tick_size = self.settings.TICK_SIZE[symbol]
+        instrument['symbol'] = symbol
         instrument['tickLog'] = Decimal(str(tick_size)).as_tuple().exponent * -1
         return instrument
     

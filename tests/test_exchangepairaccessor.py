@@ -79,8 +79,8 @@ class Test_ExchangePairAccessor(TestCase):
         self.settings_mock = MagicMock()
         self.settings_mock.DRY_RUN = False
         self.settings_mock.BACKTEST = True
-        self.settings_mock.symbol='XBTUSD'
-
+        self.settings_mock.SYMBOL='XBTUSD'
+        self.settings_mock.TICK_SIZE = {'XBTUSD': 0.5, 'ETHUSD': 0.05}
 
     def tearDown(self):
         """
