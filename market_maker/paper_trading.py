@@ -109,21 +109,35 @@ class PaperTrading:
             else:
                 bid.append(orders)
 
+        trades = self.exchange.recent_trades()
+        if len(trades) > 0:
+            last_trade = trades[-1]
+        else:
+            last_trade = {}
+        orderbook_out = {
+            'status': 'Orderbook',
+            'PAPERTRADING' : self.settings.PAPERTRADING,
+            'type' : 'Paper',
+            'last_trade' : last_trade,
+            'data' : order_book
+        }
+        self.pt_logger.info(json.dumps(orderbook_out, default=lambda o: '<not serializable>'))
+
         # Determine Price Remapping 
         # Price re-mapping is used to trigger cancellation of prices if the 
         # prices have moved since the orderbook was retrieved
         # Price re-mapping does not currently change the queue for the order
         order_book_time = self.exchange.get_orderbook_time()
-        trades = self.exchange.recent_trades()
+        
         if len(trades) > 0:
             last_trade = trades[-1]
             trade_time = iso8601.parse_date(last_trade['timestamp'])
             ob_price_remap = None
             if trade_time > order_book_time:
-                if last_trade['side'] == 'Buy' and \
+                if last_trade['side'].lower() == 'buy' and \
                     last_trade['price'] > best_ask:
                     ob_price_remap =  last_trade['price'] - best_ask
-                if last_trade['side'] == 'Sell' and \
+                if last_trade['side'].lower() == 'sell' and \
                     last_trade['price'] < best_bid:
                     ob_price_remap =  last_trade['price'] - best_bid
             else:
@@ -144,9 +158,11 @@ class PaperTrading:
                 buy_order["leavesQty"] = buy_order["orderQty"] - buy_order["cumQty"]
                 buy_order['amount_at_level'] = order_table.get(buy_order['price'],default_level)['size'] 
                 buy_order['remaining_at_level'] = order_table.get(buy_order['price'],default_level)['size'] 
-                remapped_price = buy_order['price'] - ob_price_remap
-                if buy_order['price'] in order_table and \
-                order_table[remapped_price]['side'] == 'Sell':
+                #remapped_price = buy_order['price'] - ob_price_remap
+                highest_allowable_buy =  best_bid + ob_price_remap
+                #if buy_order['price'] in order_table and \
+                #order_table[remapped_price]['side'] == 'Sell':
+                if buy_order['price'] > highest_allowable_buy:
                     self.exchange_cancels_order(buy_order)
                 else:
                     self.buy_partially_filled.append(buy_order)
@@ -157,9 +173,11 @@ class PaperTrading:
                 sell_order["leavesQty"] = sell_order["orderQty"] - sell_order["cumQty"]
                 sell_order['amount_at_level'] = order_table.get(sell_order['price'],default_level)['size'] 
                 sell_order['remaining_at_level'] = order_table.get(sell_order['price'],default_level)['size'] 
-                remapped_price = sell_order['price'] - ob_price_remap
-                if sell_order['price'] in order_table and \
-                    order_table[remapped_price]['side'] == 'Buy':
+                #remapped_price = sell_order['price'] - ob_price_remap
+                lowest_allowable_sell = best_ask + ob_price_remap
+                #if sell_order['price'] in order_table and \
+                #    order_table[remapped_price]['side'] == 'Buy':
+                if sell_order['price'] < lowest_allowable_sell:
                     self.exchange_cancels_order(sell_order)
                 else:
                     self.sell_partially_filled.append(sell_order)

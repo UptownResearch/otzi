@@ -57,20 +57,38 @@ class Test_BacktestInterface(TestCase):
 
         self.module_patcher.stop()
 
+    def test_check_if_orderbook_empty(self):
+        timekeeper = Timekeeper()
+        bmex = BacktestInterface(timekeeper = timekeeper, settings = self.settings_mock,
+            trades_filename = MEX_BTC_USD, L2orderbook_filename = MEX_OB_BTC_USD)
+        timekeeper.initialize()
+        print(bmex.check_if_orderbook_empty())
+        assert bmex.check_if_orderbook_empty() is True 
+
+        while bmex.check_if_orderbook_empty():
+            timekeeper.increment_time()
+
+        assert bmex.check_if_orderbook_empty() is False 
+
     def test_BackTest_stack(self):
         timekeeper = Timekeeper()
         bmex = BacktestInterface(timekeeper = timekeeper, settings = self.settings_mock,
             trades_filename = MEX_BTC_USD, L2orderbook_filename = MEX_OB_BTC_USD)
         timekeeper.initialize()
-        orders =    [{"orderID": "1", "orderQty": 10, "price": 7017.5, "side": "Sell" },
-                    {"orderID": "2", "orderQty": 10, "price": 7017, "side": "Buy" }]
+        while bmex.check_if_orderbook_empty():
+            timekeeper.increment_time()
+        print(bmex.get_ticker())
+        print(bmex.get_orderbook_time())
+        print(bmex.recent_trades()[-1])
+        orders =    [{"orderID": "1", "orderQty": 10, "price": 7016.5, "side": "Sell" },
+                    {"orderID": "2", "orderQty": 10, "price": 7016, "side": "Buy" }]
         bmex.create_bulk_orders(orders)
         for x in range(20):
             timekeeper.increment_time()
         bmex.loop()
         print(timekeeper.get_time())
         print(bmex.get_position())
-        assert bmex.get_position()['currentQty']  == 10
+        assert bmex.get_position()['currentQty']  == -10
 
     def test_BackTest_is_warm(self):
         timekeeper = Timekeeper()
@@ -83,14 +101,20 @@ class Test_BacktestInterface(TestCase):
     def test_BackTest_wait_update(self):
         bmex = BacktestInterface(settings = self.settings_mock,
             trades_filename = MEX_BTC_USD, L2orderbook_filename = MEX_OB_BTC_USD)
-        orders =    [{"orderID": "1", "orderQty": 10, "price": 7017.5, "side": "Sell" },
-                    {"orderID": "2", "orderQty": 10, "price": 7017, "side": "Buy" }]
+        orders =    [{"orderID": "1", "orderQty": 10, "price": 7016.5, "side": "Sell" },
+                    {"orderID": "2", "orderQty": 10, "price": 7016, "side": "Buy" }]
+        while bmex.check_if_orderbook_empty():
+            timekeeper.increment_time()
+
+        print(bmex.get_ticker())
+        print(bmex.get_orderbook_time())
+        print(bmex.recent_trades()[-1])
         bmex.create_bulk_orders(orders)
         for x in range(20):
             bmex.wait_update()
         print(bmex.current_timestamp())
         print(bmex.get_position())
-        assert bmex.get_position()['currentQty']  == 10
+        assert bmex.get_position()['currentQty']  == -10
 
     @patch('market_maker.backtest.exchangepairaccessor.ExchangePairAccessor')
     @patch('market_maker.paper_trading.PaperTrading')

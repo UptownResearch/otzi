@@ -122,7 +122,7 @@ class ExchangePairAccessor(object):
     
     def ticker_data(self, symbol=None):
         """Get ticker data."""
-
+        self._make_updates()
         if symbol == None or symbol == self.symbol:             
             current_ob = self.market_depth("")
             ticker = {

@@ -148,6 +148,34 @@ class Test_Paper_Trading(TestCase):
         print(ptrading.sell_orders_created)
         assert len(ptrading.sell_partially_filled)  == 0
 
+
+    def test_crossing_non_agress_orders_outside_of_book_should_be_cancelled(self):
+        order_rest_in_book = [{'price': 5100, 'orderQty': 100, 'side': "Buy"}]
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
+        Test1Ei = Test1()
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        print(ptrading.buy_orders_created)
+        assert len(ptrading.buy_partially_filled)  == 0
+
+    def test_crossing_non_agress_orders_outside_of_book_should_be_cancelled_sell(self):
+        order_rest_in_book = [{'price': 4900, 'orderQty': 100, 'side': "Sell"}]
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
+        Test1Ei = Test1()
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        print(ptrading.sell_orders_created)
+        assert len(ptrading.sell_partially_filled)  == 0
+
+
+
+
+
+
+
+
     def test_stale_orderbook_cancel_orders_inside_last_orders_buy(self):
         ''' test_stale_orderbook_cancel_orders_inside_last_orders_buy
         In fast markets, the orderbook can be stale. The paper trading
@@ -208,7 +236,6 @@ class Test_Paper_Trading(TestCase):
         ptrading.track_orders_created(order_rest_in_book)
         ptrading.simulate_fills_from_trades()
         assert len(ptrading.get_orders())  == 0
-
 
     def test_add_and_remove_order(self):
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy", "orderID":2}]
