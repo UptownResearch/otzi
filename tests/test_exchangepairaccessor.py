@@ -215,3 +215,5 @@ class Test_ExchangePairAccessor(TestCase):
         # increment time to get warm
         print(self.bt.current_timestamp())
         assert self.bt.current_timestamp().time() >= start_time
+
+

@@ -153,6 +153,9 @@ class BacktestInterface:
     def get_ticker(self, symbol=None):
         return self.accessor.ticker_data(symbol)
 
+    def get_orderbook_time(self):
+        return self.accessor.get_orderbook_time()
+
     def is_open(self):
         return True
 

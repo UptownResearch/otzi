@@ -184,6 +184,9 @@ class ExchangePairAccessor(object):
         self._fail_if_not_warm()
         number_to_return = min(len(self.trades), number)
         return self.trades[-number_to_return:]
+
+    def get_orderbook_time(self):
+        return self.orderbook_timestamp
     
     #
     # Private methods
@@ -207,16 +210,16 @@ class ExchangePairAccessor(object):
 
 
         
-    def update_orderbook(self, timestamp):
+    def _update_orderbook(self, timestamp):
         # process self.current_orderbook
-        row_time = iso8601.parse_date(self._date_prefix+self.current_orderbook[1])
-        while row_time <= timestamp:
+        self.orderbook_timestamp = iso8601.parse_date(self._date_prefix+self.current_orderbook[1])
+        while self.orderbook_timestamp <= timestamp:
             self.last_line = self.current_orderbook
             try:
                 self.current_orderbook = next(self.orderbookreader)
             except StopIteration:
                 break
-            row_time = iso8601.parse_date(self._date_prefix+self.current_orderbook[1])
+            self.orderbook_timestamp = iso8601.parse_date(self._date_prefix+self.current_orderbook[1])
 
     def _make_updates(self):
         if self.reached_EOF:
@@ -227,7 +230,7 @@ class ExchangePairAccessor(object):
             self.external_timestamp <= to_timestamp:
             self._update_to_timestamp(to_timestamp)
         if self.current_orderbook:
-            self.update_orderbook(to_timestamp)
+            self._update_orderbook(to_timestamp)
         self.external_timestamp = to_timestamp
         # _update_to_timestamp should not have put the current_timestamp 
         # ahead of the timekeeper
