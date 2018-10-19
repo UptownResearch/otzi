@@ -36,7 +36,7 @@ orderbook = \
   'size': 1000,
   'price': 5000}]
 
-trades = [{'timestamp': '2018-08-09T20:11:57.000Z',
+trades = [{'timestamp': '2018-08-09T20:11:56.000Z',
   'symbol': 'XBTUSD',
   'side': 'Sell',
   'size': 100,
@@ -46,7 +46,7 @@ trades = [{'timestamp': '2018-08-09T20:11:57.000Z',
   'grossValue': 1999800,
   'homeNotional': 0.019998,
   'foreignNotional': 100},
- {'timestamp': '2018-08-09T20:11:56.000Z',
+ {'timestamp': '2018-08-09T20:11:57.000Z',
   'symbol': 'XBTUSD',
   'side': 'Buy',
   'size': 100,
@@ -62,13 +62,20 @@ class Test1(ExchangeInterface):
     
     def __init__(self):
         self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
-        
+        self.trades_calls = [[], *[trades]*12]
     def current_timestamp(self):
         return self.timestamp
     def market_depth(self, symbol):
         return orderbook
     def recent_trades(self):
-        return trades 
+        print("Recent Trades Called!")
+        return self.trades_calls.pop(0)
+    def get_orderbook_time(self):
+        return self.timestamp
+    def get_instrument(self, symbol=None):
+        return {'tickSize': 0.5}
+
+
 
 
 
@@ -131,6 +138,77 @@ class Test_Paper_Trading(TestCase):
         print(ptrading.buy_orders_created)
         assert len(ptrading.buy_partially_filled)  == 0
 
+    def test_crossing_non_agress_orders_should_be_cancelled_sell(self):
+        order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Sell"}]
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
+        Test1Ei = Test1()
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        print(ptrading.sell_orders_created)
+        assert len(ptrading.sell_partially_filled)  == 0
+
+    def test_stale_orderbook_cancel_orders_inside_last_orders_buy(self):
+        ''' test_stale_orderbook_cancel_orders_inside_last_orders_buy
+        In fast markets, the orderbook can be stale. The paper trading
+        simulator should cancel orders that fall between the best orderbook
+        order and the last trade. 
+        '''
+        trades = [{'timestamp': '2018-08-09T20:11:56.000Z',
+                  'symbol': 'XBTUSD',
+                  'side': 'Sell',
+                  'size': 100,
+                  'price': 5000.5,
+                  'trdMatchID': '5ff50e87-17e9-f86c-9464-e77d452637d1'},
+                 {'timestamp': '2018-08-09T20:11:56.000Z',
+                  'symbol': 'XBTUSD',
+                  'side': 'Buy',
+                  'size': 1000,
+                  'price': 5001,
+                  'trdMatchID': 'df7f3037-b303-08ea-0f3d-699cb42f15bb',
+                    }, 
+                {'timestamp': '2018-08-09T20:11:56.000Z',
+                  'symbol': 'XBTUSD',
+                  'side': 'Buy',
+                  'size': 500,
+                  'price': 5001.5,
+                  'trdMatchID': 'dfisinurfdfs42f15bb',
+                    },
+               {'timestamp': '2018-08-09T20:11:57.000Z',
+                  'symbol': 'XBTUSD',
+                  'side': 'Buy',
+                  'size': 100,
+                  'price': 5001.5,
+                  'trdMatchID': 'dfisinurfdfs42f15bb',
+                    }, 
+                {'timestamp': '2018-08-09T20:11:58.000Z',
+                  'symbol': 'XBTUSD',
+                  'side': 'Buy',
+                  'size': 100,
+                  'price': 5001.5,
+                  'trdMatchID': 'dfisinurfdfs42f15bb',
+                    }]
+        class Test_Stale(Test1):   
+            def __init__(self):
+                super().__init__() 
+                self.timestamps = [iso8601.parse_date('2018-08-09T20:11:59.000Z')]     
+                self.trades_calls = [trades,[]]
+            def current_timestamp(self):
+                return self.timestamps.pop(0)
+            def market_depth(self, symbol):
+                return orderbook
+            def get_orderbook_time(self):
+                return iso8601.parse_date('2018-08-09T20:11:55.000Z')
+
+        order_rest_in_book = [{'price': 5001, 'orderQty': 100, 'side': "Sell"}]
+        ptrading = self.paper_trading(settings=self.settings_mock)
+        ptrading.reset()
+        Test1Ei = Test_Stale()
+        ptrading.provide_exchange(Test1Ei)
+        ptrading.track_orders_created(order_rest_in_book)
+        ptrading.simulate_fills_from_trades()
+        assert len(ptrading.get_orders())  == 0
+
 
     def test_add_and_remove_order(self):
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy", "orderID":2}]
@@ -158,18 +236,19 @@ class Test_Paper_Trading(TestCase):
         assert ptrading.filled == []
 
     def test_getting_filled_after_several_loops(self):
-        class Test2(ExchangeInterface):   
+        class Test2(Test1):   
             def __init__(self):
+                super().__init__() 
                 self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
                 self.counter = 0
             def current_timestamp(self):
                 return self.timestamp
             def market_depth(self, symbol):
                 return orderbook
-            def recent_trades(self):
-                return trades 
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
+            def get_orderbook_time(self):
+                return self.timestamp
         order_rest_in_book = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"}]
         ptrading = self.paper_trading(settings=self.settings_mock)
         ptrading.reset()
@@ -190,7 +269,7 @@ class Test_Paper_Trading(TestCase):
         orders = [{'price': 5000.5, 'orderQty': 100, 'side': "Buy"},
                         {'price': 5000, 'orderQty': 100, 'side': "Buy"},
                        {'price': 4999.5, 'orderQty': 100, 'side': "Buy"}]
-        trades = [{'timestamp': '2018-08-09T20:11:57.000Z',
+        btrades = [{'timestamp': '2018-08-09T20:11:57.000Z',
             'symbol': 'XBTUSD',
             'side': 'Sell',
             'size': 1100,
@@ -202,17 +281,19 @@ class Test_Paper_Trading(TestCase):
             'size': 1050,
             'price': 5000,
             'trdMatchID': "cwniniewal"}]
-        class Test3(ExchangeInterface):   
+        class Test3(Test1):   
             def __init__(self):
+                super().__init__() 
                 self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
+                self.trades_calls = [[], btrades, btrades]
             def current_timestamp(self):
                 return self.timestamp
             def market_depth(self, symbol):
                 return orderbook
-            def recent_trades(self):
-                return trades 
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
+            def get_orderbook_time(self):
+                return self.timestamp
         ptrading = self.paper_trading(settings=self.settings_mock)
         ptrading.reset()
         TestC = Test3()
@@ -239,17 +320,19 @@ class Test_Paper_Trading(TestCase):
             'size': 1050,
             'price': 5001.5,
             'trdMatchID': "asdfasdfnneef"}]
-        class Test3(ExchangeInterface):   
+        class Test3(Test1):   
             def __init__(self):
+                super().__init__() 
                 self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
+                self.trades_calls = [[], ltrades, ltrades]
             def current_timestamp(self):
                 return self.timestamp
             def market_depth(self, symbol):
                 return orderbook
-            def recent_trades(self):
-                return ltrades
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
+            def get_orderbook_time(self):
+                return self.timestamp
         ptrading = self.paper_trading(settings=self.settings_mock)
         ptrading.reset()
         TestC = Test3()
@@ -257,6 +340,7 @@ class Test_Paper_Trading(TestCase):
         ptrading.track_orders_created(orders)
         ptrading.simulate_fills_from_trades()
         ptrading.close_positions()
+        print(ptrading.position["currentQty"])
         assert ptrading.position["currentQty"] == -150
         assert len(ptrading.get_orders()) == 2
 
@@ -283,17 +367,19 @@ class Test_Paper_Trading(TestCase):
             'size': 1050,
             'price': 5001.5,
             'trdMatchID': "asdfasdfnneef"}]
-        class Test3(ExchangeInterface):   
+        class Test3(Test1):   
             def __init__(self):
                 self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
+                self.trades_calls = [[], ltrades]
             def current_timestamp(self):
                 return self.timestamp
             def market_depth(self, symbol):
                 return orderbook
-            def recent_trades(self):
-                return ltrades
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
+            def get_orderbook_time(self):
+                return self.timestamp
+
         ptrading = self.paper_trading(settings=self.settings_mock)
         ptrading.reset()
         TestC = Test3()
@@ -328,17 +414,18 @@ class Test_Paper_Trading(TestCase):
             'size': 1050,
             'price': 5000.0,
             'trdMatchID': "asdfasdfnneef"}]
-        class Test3(ExchangeInterface):   
+        class Test3(Test1):   
             def __init__(self):
                 self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
+                self.trades_calls = [[], ltrades]
             def current_timestamp(self):
                 return self.timestamp
             def market_depth(self, symbol):
                 return orderbook
-            def recent_trades(self):
-                return ltrades
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
+            def get_orderbook_time(self):
+                return self.timestamp
         ptrading = self.paper_trading(settings=self.settings_mock)
         ptrading.reset()
         TestC = Test3()
@@ -414,17 +501,18 @@ class Test_Paper_Trading(TestCase):
             'size': 24,
             'price': 5000.0,
             'trdMatchID': "qevrkmoinjnneef"},]
-        class Test3(ExchangeInterface):   
+        class Test3(Test1):   
             def __init__(self):
                 self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')
+                self.trades_calls = [[], ltrades]
             def current_timestamp(self):
                 return self.timestamp
             def market_depth(self, symbol):
                 return orderbook
-            def recent_trades(self):
-                return ltrades
             def updated_timestamp(self, timestamp):
                 self.timestamp = timestamp
+            def get_orderbook_time(self):
+                return self.timestamp
         ptrading = self.paper_trading(settings=self.settings_mock)
         ptrading.reset()
         TestC = Test3()

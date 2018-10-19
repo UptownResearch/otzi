@@ -93,44 +93,76 @@ class PaperTrading:
             self.sell_orders_created.extend(sell_orders)
 
         order_book = self.exchange.market_depth(self.symbol)
-
         ask = []
         bid = []
         order_table = {} 
+        best_bid = 0
+        best_ask = 10000000
         for orders in order_book:
             order_table[orders['price']] = orders
+            if orders['side'] == 'Sell' and orders['price'] < best_ask:
+                best_ask = orders['price']
+            if orders['side'] == 'Buy' and orders['price'] > best_bid:
+                best_bid = orders['price']
             if orders['side'] == "Sell":
                 ask.append(orders)
             else:
                 bid.append(orders)
 
+        # Determine Price Remapping 
+        # Price re-mapping is used to trigger cancellation of prices if the 
+        # prices have moved since the orderbook was retrieved
+        # Price re-mapping does not currently change the queue for the order
+        order_book_time = self.exchange.get_orderbook_time()
+        trades = self.exchange.recent_trades()
+        if len(trades) > 0:
+            last_trade = trades[-1]
+            trade_time = iso8601.parse_date(last_trade['timestamp'])
+            ob_price_remap = None
+            if trade_time > order_book_time:
+                if last_trade['side'] == 'Buy' and \
+                    last_trade['price'] > best_ask:
+                    ob_price_remap =  last_trade['price'] - best_ask
+                if last_trade['side'] == 'Sell' and \
+                    last_trade['price'] < best_bid:
+                    ob_price_remap =  last_trade['price'] - best_bid
+            else:
+                ob_price_remap = 0
+        else:
+            ob_price_remap = 0
+
+        if ob_price_remap is None:
+            raise Exception("PaperTrading.track_orders_created - There may be an issue with the orderbook")
+         
         # let's not do market orders during backtests
         # send all orders to partially filled list
         default_level = {'size':0}
         if self.settings.BACKTEST:
-            for orders in buy_orders:
+            for buy_order in buy_orders:
                 self.random_base += 1
-                orders["cumQty"] = 0
-                orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
-                orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
-                orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
-                if orders['price'] in order_table and \
-                order_table[orders['price']]['side'] == 'Sell':
-                    self.exchange_cancels_order(orders)
+                buy_order["cumQty"] = 0
+                buy_order["leavesQty"] = buy_order["orderQty"] - buy_order["cumQty"]
+                buy_order['amount_at_level'] = order_table.get(buy_order['price'],default_level)['size'] 
+                buy_order['remaining_at_level'] = order_table.get(buy_order['price'],default_level)['size'] 
+                remapped_price = buy_order['price'] - ob_price_remap
+                if buy_order['price'] in order_table and \
+                order_table[remapped_price]['side'] == 'Sell':
+                    self.exchange_cancels_order(buy_order)
                 else:
-                    self.buy_partially_filled.append(orders)
+                    self.buy_partially_filled.append(buy_order)
 
-            for orders in sell_orders:
+            for sell_order in sell_orders:
                 self.random_base += 1
-                orders["cumQty"] = 0
-                orders["leavesQty"] = orders["orderQty"] - orders["cumQty"]
-                orders['amount_at_level'] = order_table.get(orders['price'],default_level)['size'] 
-                orders['remaining_at_level'] = order_table.get(orders['price'],default_level)['size'] 
-                if orders['price'] in order_table and \
-                    order_table[orders['price']]['side'] == 'Buy':
-                    self.exchange_cancels_order(orders)
+                sell_order["cumQty"] = 0
+                sell_order["leavesQty"] = sell_order["orderQty"] - sell_order["cumQty"]
+                sell_order['amount_at_level'] = order_table.get(sell_order['price'],default_level)['size'] 
+                sell_order['remaining_at_level'] = order_table.get(sell_order['price'],default_level)['size'] 
+                remapped_price = sell_order['price'] - ob_price_remap
+                if sell_order['price'] in order_table and \
+                    order_table[remapped_price]['side'] == 'Buy':
+                    self.exchange_cancels_order(sell_order)
                 else:
-                    self.sell_partially_filled.append(orders)
+                    self.sell_partially_filled.append(sell_order)
 
             return
 
