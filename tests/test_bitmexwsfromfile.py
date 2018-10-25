@@ -4,7 +4,11 @@ from unittest.mock import MagicMock, patch
 from unittest import TestCase
 import sys
 # Find code directory relative to our directory
+import os.path
 
+directory = os.path.split(os.path.abspath(__file__))[0]
+test_file =  directory + '/test_files/recorded_ws_log.log'
+lines = open(test_file , 'r').readlines()
 
 
 class Test_Exchange_Interface_Module(TestCase):
@@ -61,11 +65,28 @@ class Test_Exchange_Interface_Module(TestCase):
         assert bitmexws is not None
 
     @patch('market_maker.backtest.bitmexwsfromfile.open')
-    def test_patch_example(self, _open):
+    def test_raises_EOF_on_empty_file(self, _open):
         _open = MagicMock()
-        _open.return_value = MagicMock().readlines.ret_value = ''
-        #from market_maker.backtest.bitmexwsfromfile import BitMEXwsFromFile
-        #bitmexws = BitMEXwsFromFile(settings=self.settings_mock)
+        _open.return_value = MagicMock().readlines.return_value = []
+        from market_maker.backtest.bitmexwsfromfile import BitMEXwsFromFile
+        bitmexws = BitMEXwsFromFile(settings=self.settings_mock)
+        with self.assertRaises(EOFError):  # passes
+            bitmexws.connect()
         #print("This is seen")
         #assert bitmexws is not None
-        pass
+
+
+    @patch('market_maker.backtest.bitmexwsfromfile.open')
+    def test_process_to_ready(self, _open):
+        #_open = MagicMock()
+        open_ret_value = MagicMock()
+        open_ret_value.readlines = MagicMock()
+        open_ret_value.readlines.return_value = lines
+        _open.return_value = open_ret_value
+        from market_maker.backtest.bitmexwsfromfile import BitMEXwsFromFile
+        bitmexws = BitMEXwsFromFile(settings=self.settings_mock)
+        bitmexws.connect()
+        print(bitmexws.get_ticker("XBTUSD"))
+        assert bitmexws.get_ticker("XBTUSD")['last'] == 6406.5
+        #print("This is seen")
+        #assert bitmexws is not None

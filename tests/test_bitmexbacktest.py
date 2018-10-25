@@ -30,3 +30,4 @@ class Test_Exchange_Interface_Module(TestCase):
         backtest_interface = BitMEXbacktest(settings=self.settings_mock)
         print("Also seen")
         assert BitMEXbacktest is not None
+
