@@ -12,7 +12,7 @@ import logging
 from os.path import dirname, abspath, join
 import sys
 THIS_DIR = dirname(__file__)
-CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
+CODE_DIR = abspath(join(THIS_DIR, '..'))
 sys.path.append(CODE_DIR)
 
 from market_maker.auth import APIKeyAuthWithExpires
