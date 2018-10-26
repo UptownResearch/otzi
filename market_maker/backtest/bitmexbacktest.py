@@ -73,6 +73,14 @@ class BitMEXbacktest(object):
         return self.ws.get_instrument(symbol)
         #raise NotImplementedError
 
+    def get_orderbook_time(self, symbol):
+        obtime = self.ws.get_orderbook_time(symbol)
+        if obtime == "":
+            # default to long ago date
+            return datetime.datetime.date(2009, 1, 3)
+        else:
+            return iso8601.parse_date(obtime)
+
     def instrument(self, symbol):
         """Get an instrument's details."""
         return self.ws.get_instrument(symbol)

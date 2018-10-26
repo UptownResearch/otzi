@@ -8,6 +8,7 @@ import json
 import decimal
 import logging
 
+
 # Find code directory relative to our directory
 from os.path import dirname, abspath, join
 import sys
@@ -45,7 +46,7 @@ class BitMEXwsFromFile():
             self.start_time = iso8601.parse_date(self.settings.START_TIME)        
         except:
             self.start_time = None   
-        
+        self.orderbook_time = {}
 
 
     def __del__(self):
@@ -203,6 +204,12 @@ class BitMEXwsFromFile():
         # The instrument has a tickSize. Use it to round values.
         return {k: toNearest(float(v or 0), instrument['tickSize']) for k, v in iteritems(ticker)}
 
+    def get_orderbook_time(self, symbol):
+        if symbol in self.orderbook_time:
+            return self.orderbook_time[symbol]
+        else:
+            return ""
+
     def funds(self):
         return self.data['margin'][0]
 
@@ -319,6 +326,11 @@ class BitMEXwsFromFile():
         wait_action_occurred = False
         table = message['table'] if 'table' in message else None
         action = message['action'] if 'action' in message else None
+        # record the time of the last orderbook update
+        if table == 'orderBookL2':
+            ob_symbol = message['data'][0]['symbol']
+            self.orderbook_time[ob_symbol] = self.last_action
+        # process message
         try:
             if 'subscribe' in message:
                 if message['success']:

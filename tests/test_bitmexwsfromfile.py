@@ -90,3 +90,35 @@ class Test_Exchange_Interface_Module(TestCase):
         assert bitmexws.get_ticker("XBTUSD")['last'] == 6406.5
         #print("This is seen")
         #assert bitmexws is not None
+
+
+    @patch('market_maker.backtest.bitmexwsfromfile.open')
+    def test_process_to_ready(self, _open):
+        #_open = MagicMock()
+        open_ret_value = MagicMock()
+        open_ret_value.readlines = MagicMock()
+        open_ret_value.readlines.return_value = lines
+        _open.return_value = open_ret_value
+        from market_maker.backtest.bitmexwsfromfile import BitMEXwsFromFile
+        bitmexws = BitMEXwsFromFile(settings=self.settings_mock)
+        bitmexws.connect()
+        print(bitmexws.get_ticker("XBTUSD"))
+        assert bitmexws.get_ticker("XBTUSD")['last'] == 6406.5
+        #print("This is seen")
+        #assert bitmexws is not None
+
+    @patch('market_maker.backtest.bitmexwsfromfile.open')
+    def test_get_orderbook_time(self, _open):
+        #_open = MagicMock()
+        open_ret_value = MagicMock()
+        open_ret_value.readlines = MagicMock()
+        open_ret_value.readlines.return_value = lines
+        _open.return_value = open_ret_value
+        from market_maker.backtest.bitmexwsfromfile import BitMEXwsFromFile
+        bitmexws = BitMEXwsFromFile(settings=self.settings_mock)
+        bitmexws.connect()
+        print(bitmexws.get_orderbook_time("XBTUSD"))
+        assert bitmexws.get_orderbook_time("XBTUSD") == "2018-10-25 11:36:29,782"
+        #assert bitmexws.get_ticker("XBTUSD")['last'] == 6406.5
+        #print("This is seen")
+        #assert bitmexws is not None
