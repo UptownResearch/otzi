@@ -254,6 +254,10 @@ class OrderManager:
         to_amend = []
         to_create = []
         existing_orders = self.exchange.get_orders()
+        if len(existing_orders) > 4:
+            logger.warn("Number of orders exceeds 4, canceling all orders")
+            self.exchange.cancel_all_orders()
+            return
         buy_present = sell_present = False
         ticker = self.exchange.get_ticker()
         last_price = self.exchange.recent_trades()[-1]['price']

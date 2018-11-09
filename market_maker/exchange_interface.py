@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from time import sleep
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from os.path import getmtime
 import random
 import requests
@@ -65,6 +65,7 @@ class ExchangeInterface:
         self.rate_limit  = 1
         self.rate_limit_remaining = 0
         self.last_order_time = None
+        self.live_orders = []
 
     def cancel_order(self, order):
         if self.settings.compare is not True:
@@ -325,15 +326,31 @@ class ExchangeInterface:
         self.last_order_time = self._current_timestamp() 
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
+            order['submission_time'] = self.last_order_time
         if self.dry_run:
             return orders  
+        
+        # Rate limit same-side submission of orders 
+        MIN_TIME_BETWEEN_ORDERS = .5
+        acceptable_orders = []
+        for order in orders:
+            delete = False
+            for e_order in self.live_orders:
+                if order['side'] == e_order['side'] and \
+                    order['submission_time'] < e_order['submission_time'] + \
+                    MIN_TIME_BETWEEN_ORDERS:
+                        logger.warn("Rejected order: %s" % json.dumps(order))
+                        delete = True
+            if not delete:
+                acceptable_orders.append(order)
 
         if self.settings.BACKTEST:
-            print(self.paper)
-            self.paper.track_orders_created(orders)
-            return orders 
+            self.paper.track_orders_created(acceptable_orders)
+            self.live_orders.extend(acceptable_orders)
+            return acceptable_orders 
         else:
-            return self.bitmex.create_bulk_orders(orders)
+            self.live_orders.extend(acceptable_orders)
+            return self.bitmex.create_bulk_orders(acceptable_orders)
 
     def cancel_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
