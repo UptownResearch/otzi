@@ -21,7 +21,9 @@ sys.path.append(CODE_DIR)
 from market_maker import bitmex
 #from market_maker.settings import settings
 from market_maker.utils import  constants, errors, math
-from market_maker import paper_trading
+#from market_maker import paper_trading
+import market_maker.paper_trading as paper_trading
+#import paper_trading
 
 from market_maker.backtest.bitmexbacktest import BitMEXbacktest
 
@@ -323,18 +325,14 @@ class ExchangeInterface:
         self.last_order_time = self._current_timestamp() 
         for order in orders:
             order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
-        if self.settings.compare is not True:
-            if self.dry_run and self.settings.PAPERTRADING == False:
-                return orders
+        if self.dry_run:
+            return orders  
 
-            if self.settings.PAPERTRADING:
-                self.paper.track_orders_created(orders)
-                return orders 
-
-            return self.bitmex.create_bulk_orders(orders)
-        else:
+        if self.settings.BACKTEST:
+            print(self.paper)
             self.paper.track_orders_created(orders)
-
+            return orders 
+        else:
             return self.bitmex.create_bulk_orders(orders)
 
     def cancel_bulk_orders(self, orders):

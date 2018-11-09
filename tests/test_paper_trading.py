@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from unittest import TestCase
 #from market_maker.settings import settings
 
-class ExchangeInterface:
+class FakeExchangeInterface:
     def current_timestamp(self):
         pass
     def market_depth(self, symbol):
@@ -58,7 +58,7 @@ trades = [{'timestamp': '2018-08-09T20:11:56.000Z',
   'foreignNotional': 100}]
 
 
-class Test1(ExchangeInterface):
+class Test1(FakeExchangeInterface):
     
     def __init__(self):
         self.timestamp = iso8601.parse_date('2018-08-09T20:11:55.000Z')

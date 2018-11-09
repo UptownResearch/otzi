@@ -22,9 +22,13 @@ class Test_Exchange_Interface_Module(TestCase):
         self.coinbase_book = MagicMock()
         self.logging = MagicMock()
         self.log = MagicMock()
+        self.bitmex = MagicMock()
+        self.paper_trading = MagicMock()
+        self.market_maker = MagicMock()
         modules = {
             'market_maker.settings': self.settings_mock,
-            'market_maker.exchange_interface' : self.exchange_interface,
+            'market_maker.backtest.bitmexbacktest' : self.bitmex,
+            'market_maker.paper_trading' : self.paper_trading,
             'market_maker.coinbase.order_book' : self.coinbase_book,
             'market_maker.utils.log' : self.log,
             'logging' : self.logging
@@ -45,6 +49,7 @@ class Test_Exchange_Interface_Module(TestCase):
         self.settings_mock.SYMBOL = 'XBTUSD'
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
+
         #from my_module import MyModule
         #from market_maker.market_maker import OrderManager
         #self.om = OrderManager()
@@ -59,5 +64,41 @@ class Test_Exchange_Interface_Module(TestCase):
 
     def test_module_loads(self):
         from market_maker.exchange_interface import ExchangeInterface
-        exchange_interface = ExchangeInterface(settings=self.settings_mock)
-        assert exchange_interface is not None
+        exchange_interface_ = ExchangeInterface(settings=self.settings_mock)
+        assert exchange_interface_ is not None
+
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test_places_order_in_backtest(self, backtest, paper): 
+        self.settings_mock.ORDERID_PREFIX  = "test_"
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+        to_create = []
+        neworder1 = {'orderID': 1,  'orderQty': 100, 
+            'price':  6001, 'side': "Sell" , 'theo': 6000}
+        neworder2 = {'orderID': 2,  'orderQty': 100, 
+            'price':  5999, 'side': "Buy" , 'theo': 6000}
+        to_create.extend([neworder1, neworder2])
+        self.exchange_interface.create_bulk_orders(to_create)
+        print(paper.return_value.mock_calls)
+        paper.return_value.track_orders_created.assert_called()
+
+        # self.exchange.create_bulk_orders(to_create)
+        #self.exchange.amend_bulk_orders(to_amend)
+
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test_places_order_in_live(self, backtest, paper): 
+        self.settings_mock.ORDERID_PREFIX  = "live_"
+        self.settings_mock.BACKTEST = False
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+        to_create = []
+        neworder1 = {'orderID': 1,  'orderQty': 100, 
+            'price':  6001, 'side': "Sell" , 'theo': 6000}
+        neworder2 = {'orderID': 2,  'orderQty': 100, 
+            'price':  5999, 'side': "Buy" , 'theo': 6000}
+        to_create.extend([neworder1, neworder2])
+        self.exchange_interface.create_bulk_orders(to_create)
+        print(paper.return_value.mock_calls)
+        paper.return_value.track_orders_created.assert_called()
