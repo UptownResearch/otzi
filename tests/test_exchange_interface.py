@@ -86,9 +86,10 @@ class Test_Exchange_Interface_Module(TestCase):
         # self.exchange.create_bulk_orders(to_create)
         #self.exchange.amend_bulk_orders(to_amend)
 
+    @patch('market_maker.bitmex.BitMEX')
     @patch('market_maker.paper_trading.PaperTrading')
     @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
-    def test_places_order_in_live(self, backtest, paper): 
+    def test_places_order_in_live(self, backtest, paper, bitmex): 
         self.settings_mock.ORDERID_PREFIX  = "live_"
         self.settings_mock.BACKTEST = False
         from market_maker.exchange_interface import ExchangeInterface
@@ -100,5 +101,5 @@ class Test_Exchange_Interface_Module(TestCase):
             'price':  5999, 'side': "Buy" , 'theo': 6000}
         to_create.extend([neworder1, neworder2])
         self.exchange_interface.create_bulk_orders(to_create)
-        print(paper.return_value.mock_calls)
-        paper.return_value.track_orders_created.assert_called()
+        print(bitmex.return_value.mock_calls)
+        bitmex.return_value.create_bulk_orders.assert_called()
