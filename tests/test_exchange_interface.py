@@ -112,6 +112,7 @@ class Test_Exchange_Interface_Module(TestCase):
     def test_places_order_in_live(self, backtest, paper, bitmex): 
         self.settings_mock.ORDERID_PREFIX  = "live_"
         self.settings_mock.BACKTEST = False
+        self.settings_mock.PAPERTRADING = False
         from market_maker.exchange_interface import ExchangeInterface
         self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
         to_create = []
@@ -124,6 +125,40 @@ class Test_Exchange_Interface_Module(TestCase):
         print(bitmex.return_value.mock_calls)
         bitmex.return_value.create_bulk_orders.assert_called()
 
+
+    @patch('market_maker.bitmex.BitMEX')
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test_cancels_order_in_live(self, backtest, paper, bitmex): 
+        self.settings_mock.ORDERID_PREFIX  = "live_"
+        self.settings_mock.BACKTEST = False
+        self.settings_mock.PAPERTRADING = False
+        bitmex_instance = MagicMock()
+        bitmex.return_value = bitmex_instance
+        bitmex_instance.instrument.return_value = {'tickLog':1}
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+        to_create = []
+        neworder1 = {'orderID': 1,  'orderQty': 100, 
+            'price':  6001.0, 'side': "Sell" , 'theo': 6000}
+        neworder2 = {'orderID': 2,  'orderQty': 100, 
+            'price':  5999.0, 'side': "Buy" , 'theo': 6000}
+        to_create.extend([neworder1, neworder2])
+        # setup time
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        self.exchange_interface._current_timestamp = Mock()
+        self.exchange_interface._current_timestamp.return_value = ts
+        # Add orders and then get them back
+        self.exchange_interface.create_bulk_orders(to_create)
+        orders = self.exchange_interface.get_orders()
+        bitmex_instance.http_open_orders.return_value = to_create
+        self.exchange_interface.cancel_order(neworder1)
+        self.exchange_interface.cancel_all_orders()
+        bitmex_instance.open_orders.return_value = []
+        orders = self.exchange_interface.get_orders()
+        bitmex_instance.cancel.assert_called_with([1,2])
+        print(self.exchange_interface.live_orders)
+        assert len(self.exchange_interface.live_orders) == 0
 
     @patch('market_maker.bitmex.BitMEX')
     @patch('market_maker.paper_trading.PaperTrading')

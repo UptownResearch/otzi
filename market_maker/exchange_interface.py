@@ -68,83 +68,55 @@ class ExchangeInterface:
         self.live_orders = []
 
     def cancel_order(self, order):
-        if self.settings.compare is not True:
-            tickLog = self.get_instrument()['tickLog']
-            if self.settings.PAPERTRADING:
-                logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-                return self.paper.cancel_order(order['orderID'])
-
+        tickLog = self.get_instrument()['tickLog']
+        if self.settings.PAPERTRADING:
             logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-            while True:
-                try:
-                    self.bitmex.cancel(order['orderID'])
-                    sleep(self.settings.API_REST_INTERVAL)
-                except ValueError as e:
-                    logger.info(e)
-                    sleep(self.settings.API_ERROR_INTERVAL)
-                else:
-                    break
-        else:
-            tickLog = self.get_instrument()['tickLog']
+            return self.paper.cancel_order(order['orderID'])
 
-            self.paper.cancel_order(order['orderID'])
-            compare_logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-
-            logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-            while True:
-                try:
-                    self.bitmex.cancel(order['orderID'])
-                    sleep(self.settings.API_REST_INTERVAL)
-                except ValueError as e:
-                    logger.info(e)
-                    sleep(self.settings.API_ERROR_INTERVAL)
-                else:
-                    break
+        logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+        while True:
+            try:
+                self.bitmex.cancel(order['orderID'])
+                sleep(self.settings.API_REST_INTERVAL)
+            except ValueError as e:
+                logger.info(e)
+                sleep(self.settings.API_ERROR_INTERVAL)
+            else:
+                break
+        new_live_orders = []
+        for c_order in self.live_orders:
+            if 'orderID' in c_order and \
+                c_order['orderID'] != order['orderID']:
+                new_live_orders.append(c_order)
+        self.live_orders = new_live_orders
 
     def cancel_all_orders(self):
-        if self.settings.compare is not True:
-            if self.dry_run and self.settings.PAPERTRADING == False:
-                return
-
-            if self.settings.PAPERTRADING:
-                logger.info("Resetting current position. Canceling all existing orders.")
-                return self.paper.cancel_all_orders()
-
+        if self.dry_run and self.settings.PAPERTRADING == False:
+            return
+        if self.settings.PAPERTRADING:
             logger.info("Resetting current position. Canceling all existing orders.")
-            tickLog = self.get_instrument()['tickLog']
+            return self.paper.cancel_all_orders()
+        logger.info("Resetting current position. Canceling all existing orders.")
+        tickLog = self.get_instrument()['tickLog']
+        # In certain cases, a WS update might not make it through before we call this.
+        # For that reason, we grab via HTTP to ensure we grab them all.
+        orders = self.bitmex.http_open_orders()
+        for order in orders:
+            logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
 
-            # In certain cases, a WS update might not make it through before we call this.
-            # For that reason, we grab via HTTP to ensure we grab them all.
-            orders = self.bitmex.http_open_orders()
+        orderIDs = [order['orderID'] for order in orders]
+        if len(orders):
+            self.bitmex.cancel(orderIDs)
 
-            for order in orders:
-                logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+        new_live_orders = []
+        for c_order in self.live_orders:
+            if 'orderID' in c_order and \
+                c_order['orderID'] not in orderIDs:
+                new_live_orders.append(c_order)
+        self.live_orders = new_live_orders
 
-            if len(orders):
-                self.bitmex.cancel([order['orderID'] for order in orders])
+        #sleep(self.settings.API_REST_INTERVAL)
 
-
-
-            sleep(self.settings.API_REST_INTERVAL)
-        else:
-
-            compare_logger.info("Resetting current position. Canceling all existing orders.")
-            self.paper.cancel_all_orders()
-
-            logger.info("Resetting current position. Canceling all existing orders.")
-            tickLog = self.get_instrument()['tickLog']
-
-            # In certain cases, a WS update might not make it through before we call this.
-            # For that reason, we grab via HTTP to ensure we grab them all.
-            orders = self.bitmex.http_open_orders()
-
-            for order in orders:
-                logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-
-            if len(orders):
-                self.bitmex.cancel([order['orderID'] for order in orders])
-
-            sleep(self.settings.API_REST_INTERVAL)
 
     def get_portfolio(self):
         contracts = self.settings.CONTRACTS
@@ -262,7 +234,6 @@ class ExchangeInterface:
                 #let's keep local live orders around for only 5 seconds
                 if 'submission_time' in order and \
                     time  > order['submission_time'] + 5:
-                        print("should continue")
                         continue
                 new_live_orders.append(order)
         self.live_orders = new_live_orders
