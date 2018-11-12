@@ -241,17 +241,31 @@ class ExchangeInterface:
             return self.bitmex.funds(), self.paper.get_funds()
 
     def get_orders(self):
-        if self.settings.compare is not True:
-            if self.dry_run and self.settings.PAPERTRADING == False:
-                return []
+        if self.dry_run and self.settings.PAPERTRADING == False:
+            return []
+        if self.settings.PAPERTRADING:
+            return self.paper.get_orders()
+        #orders = self.bitmex.open_orders()
+        self._converge_open_orders()
+        return self.live_orders
 
-            if self.settings.PAPERTRADING:
-                return self.paper.get_orders()
-
-            return self.bitmex.open_orders()
-        else:
-            
-            return self.bitmex.open_orders()
+    def _converge_open_orders(self):
+        orders = self.bitmex.open_orders() 
+        time = self._current_timestamp() 
+        new_live_orders = []
+        for order in self.live_orders:
+            matched_order = [o for o in orders if \
+                                o["clOrdID"] == order["clOrdID"]]
+            if len(matched_order) > 0:
+                new_live_orders.append(matched_order[0])
+            else:
+                #let's keep local live orders around for only 5 seconds
+                if 'submission_time' in order and \
+                    time  > order['submission_time'] + 5:
+                        print("should continue")
+                        continue
+                new_live_orders.append(order)
+        self.live_orders = new_live_orders
 
     def get_highest_buy(self):
         buys = [o for o in self.get_orders() if o['side'] == 'Buy']
@@ -322,10 +336,13 @@ class ExchangeInterface:
 
             return self.bitmex.amend_bulk_orders(orders), orders
 
+    def _generate_clOrdID(self):
+        return self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
+
     def create_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
         for order in orders:
-            order['clOrdID'] = self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
+            order['clOrdID'] = self._generate_clOrdID()
             order['submission_time'] = self.last_order_time
         if self.dry_run:
             return orders  

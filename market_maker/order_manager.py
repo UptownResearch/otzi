@@ -281,7 +281,8 @@ class OrderManager:
                                     'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice }
                         if not buy_present:     
                             buy_present = True
-                            to_amend.append(neworder)
+                            if neworder['orderQty'] > 0:
+                                to_amend.append(neworder)
                         else:
                             #neworder['orderQty'] = 0
                             pass
@@ -296,7 +297,8 @@ class OrderManager:
                                     'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice}
                         if not sell_present:     
                             sell_present = True
-                            to_amend.append(neworder)
+                            if neworder['orderQty'] > 0:
+                                to_amend.append(neworder)
                         else:
                             #neworder['orderQty'] = 0
                             pass
@@ -331,18 +333,21 @@ class OrderManager:
         elif len(existing_orders) == 1:
             for order in existing_orders:
                 side = "Buy" if order['side'] == "Sell" else "Sell"
-                size = buyamount if order['side'] == "Buy" else sellamount 
+                size = buyamount if order['side'] == "Sell" else sellamount 
                 price = buyprice if order['side'] == "Sell" else sellprice
                 neworder = {'price':  price, 'orderQty': size, 'side': side, 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
-                to_create.append(neworder)
+                if neworder['orderQty'] > 0:
+                    to_create.append(neworder)
         else:
             #cancel existing orders and create new ones
             logger.info("Length of existing orders: %d" % (len(existing_orders)))
             self.exchange.cancel_all_orders()
             buyorder = {'price':  buyprice, 'orderQty': buyamount, 'side': "Buy", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
             sellorder = {'price':  sellprice, 'orderQty': sellamount, 'side': "Sell", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
-            to_create.append(buyorder)
-            to_create.append(sellorder)
+            if buyorder['orderQty'] > 0:
+                to_create.append(buyorder)
+            if sellorder['orderQty'] > 0: 
+                to_create.append(sellorder)
 
         if len(to_create) > 0:
             logger.info("Creating %d orders:" % (len(to_create)))

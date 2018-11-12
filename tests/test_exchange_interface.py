@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import iso8601
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, Mock
 from unittest import TestCase
 import sys
 # Find code directory relative to our directory
@@ -157,7 +157,121 @@ class Test_Exchange_Interface_Module(TestCase):
         assert len(self.exchange_interface.live_orders) == 2
 
 
-# Below is an example of a live order on the exchange of the kind that would be returned by get_orders
-'''
-[{"orderID": "9bb6b5da-729a-b2b3-c7a1-614f9b222784", "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", "clOrdLinkID": "", "account": 779788, "symbol": "XBTUSD", "side": "Buy", "simpleOrderQty": null, "orderQty": 100, "price": 6346, "displayQty": null, "stopPx": null, "pegOffsetValue": null, "pegPriceType": "", "currency": "USD", "settlCurrency": "XBt", "ordType": "Limit", "timeInForce": "GoodTillCancel", "execInst": "ParticipateDoNotInitiate", "contingencyType": "", "exDestination": "XBME", "ordStatus": "New", "triggered": "", "workingIndicator": false, "ordRejReason": "", "simpleLeavesQty": null, "leavesQty": 100, "simpleCumQty": null, "cumQty": 0, "avgPx": null, "multiLegReportingType": "SingleSecurity", "text": "Submitted via API.", "transactTime": "2018-11-09T17:40:40.755Z", "timestamp": "2018-11-09T17:40:40.755Z"}]
-'''
+    @patch('market_maker.bitmex.BitMEX')
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test_get_orders_returns_order_in_backtest(self, backtest, paper, bitmex): 
+        to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
+            "theo": 6346.75, "last_price": 6346.5, "orderID": 57632, 
+            "coinbase_mid": 6349.985, "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", 
+            "symbol": "XBTUSD", "execInst": "ParticipateDoNotInitiate"}]
+        self.settings_mock.ORDERID_PREFIX  = "live_"
+        self.settings_mock.BACKTEST = True
+        self.settings_mock.PAPERTRADING = True
+        paper.return_value = MagicMock()
+        paper.return_value.get_orders.return_value = to_create
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+        self.exchange_interface.create_bulk_orders(to_create)       
+        orders = self.exchange_interface.get_orders()
+        print(orders)
+        assert orders[0]['orderID'] == 57632
+
+
+    @patch('market_maker.bitmex.BitMEX')
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test__converge_open_orders(self, backtest, paper, bitmex):
+        self.settings_mock.ORDERID_PREFIX  = "live_"
+        self.settings_mock.PAPERTRADING = False
+        self.settings_mock.BACKTEST = False
+        bitmex.return_value = MagicMock()
+        to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
+            "theo": 6346.75, "last_price": 6346.5, "orderID": 57632, 
+            "coinbase_mid": 6349.985, "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", 
+            "symbol": "XBTUSD", "execInst": "ParticipateDoNotInitiate"}]
+        from_exchange = [{"orderID": "9bb6b5da-729a-b2b3-c7a1-614f9b222784", 
+            "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", "clOrdLinkID": "", 
+            "account": 779788, "symbol": "XBTUSD", "side": "Buy", 
+            "simpleOrderQty": None, "orderQty": 100, "price": 6346, 
+            "displayQty": None, "stopPx": None, "pegOffsetValue": None, 
+            "pegPriceType": "", "currency": "USD", "settlCurrency": "XBt", 
+            "ordType": "Limit", "timeInForce": "GoodTillCancel", 
+            "execInst": "ParticipateDoNotInitiate", "contingencyType": "", 
+            "exDestination": "XBME", "ordStatus": "New", "triggered": "", 
+            "workingIndicator": False, "ordRejReason": "", 
+            "simpleLeavesQty": None, "leavesQty": 100, "simpleCumQty": None, 
+            "cumQty": 0, "avgPx": None, "multiLegReportingType": "SingleSecurity",
+            "text": "Submitted via API.", "transactTime": "2018-11-09T17:40:40.755Z",
+            "timestamp": "2018-11-09T17:40:40.755Z"}]
+
+        bitmex.return_value.open_orders.return_value = from_exchange
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+        self.exchange_interface._generate_clOrdID = Mock()
+        self.exchange_interface._generate_clOrdID.return_value = \
+            "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ"
+        # set up timestamp 
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        self.exchange_interface._current_timestamp = Mock()
+        self.exchange_interface._current_timestamp.return_value = ts
+
+        self.exchange_interface.create_bulk_orders(to_create)
+        self.exchange_interface._converge_open_orders()
+        #print(self.exchange_interface.live_orders)
+        assert self.exchange_interface.live_orders == from_exchange
+
+    @patch('market_maker.bitmex.BitMEX')
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test_local_orders_live_5_seconds(self, backtest, paper, bitmex):
+        self.settings_mock.ORDERID_PREFIX  = "live_"
+        self.settings_mock.PAPERTRADING = False
+        self.settings_mock.BACKTEST = False
+        bitmex.return_value = MagicMock()
+        to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
+            "theo": 6346.75, "last_price": 6346.5, "orderID": 57632, 
+            "coinbase_mid": 6349.985, "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", 
+            "symbol": "XBTUSD", "execInst": "ParticipateDoNotInitiate"}]
+
+        bitmex.return_value.open_orders.return_value = []
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+        self.exchange_interface._generate_clOrdID = Mock()
+        self.exchange_interface._generate_clOrdID.return_value = \
+            "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ"
+        # set up timestamp 
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        self.exchange_interface._current_timestamp = Mock()
+        self.exchange_interface._current_timestamp.return_value = ts
+        self.exchange_interface.create_bulk_orders(to_create)
+        self.exchange_interface._current_timestamp.return_value = ts + 6
+        print(ts + 6)
+        self.exchange_interface._converge_open_orders()
+        print(self.exchange_interface.live_orders)
+        assert self.exchange_interface.live_orders == []
+
+
+
+    @patch('market_maker.bitmex.BitMEX')
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test_return_promise_until_exchange_acks_order(self, backtest, paper, bitmex):
+        self.settings_mock.ORDERID_PREFIX  = "live_"
+        self.settings_mock.PAPERTRADING = False
+        self.settings_mock.BACKTEST = False
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+        to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
+            "theo": 6346.75, "last_price": 6346.5, "orderID": 57632, 
+            "coinbase_mid": 6349.985, "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", 
+            "symbol": "XBTUSD", "execInst": "ParticipateDoNotInitiate"}]
+        # submit order without changing time, should be rejected
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        self.exchange_interface._current_timestamp = Mock()
+        self.exchange_interface._current_timestamp.return_value = ts
+        self.exchange_interface.create_bulk_orders(to_create)
+        orders = self.exchange_interface.get_orders()
+        assert orders[0]['orderID'] == 57632
+

@@ -206,3 +206,14 @@ class Test_OrderManager(TestCase):
         assert len(self.om.exchange.amend_bulk_orders.call_args[0][0]) == 2
         print(self.om.exchange.amend_bulk_orders.call_args[0][0])
 
+    def test_prices_to_orders_update_orders(self):
+        self.orderManager.reset =  MagicMock()
+        self.om = self.orderManager(settings= self.settings_mock)
+        self.om.exchange.get_instrument.return_value = {'tickLog': 1}
+        self.om.prices_to_orders(6429, 6439, 
+                                buyamount = 0, 
+                                sellamount = 0)
+        print(self.om.exchange.create_bulk_orders.call_args)
+        # No orders should have been created
+        assert self.om.exchange.create_bulk_orders.call_args is None
+
