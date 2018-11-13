@@ -10,6 +10,8 @@ import signal
 import json
 import base64
 import uuid
+import copy
+
 
 # Find code directory relative to our directory
 from os.path import dirname, abspath, join
@@ -338,6 +340,9 @@ class ExchangeInterface:
             return acceptable_orders 
         else:
             self.live_orders.extend(acceptable_orders)
+            submissible_orders = copy.deepcopy(acceptable_orders)
+            for order in submissible_orders:
+                order.pop('submission_time', None)
             return self.bitmex.create_bulk_orders(acceptable_orders)
 
     def cancel_bulk_orders(self, orders):

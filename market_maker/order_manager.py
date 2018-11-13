@@ -325,6 +325,7 @@ class OrderManager:
                     errorObj = e.response.json()
                     if errorObj['error']['message'] == 'Invalid ordStatus':
                         logger.warn("Amending failed. Waiting for order data to converge and retrying.")
+                        logger.warn("Failed on orders: %s" % json.dumps(to_amend))
                         sleep(0.5)
                         return self.place_orders()
                     else:
