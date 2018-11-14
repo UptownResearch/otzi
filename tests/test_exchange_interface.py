@@ -255,6 +255,9 @@ class Test_Exchange_Interface_Module(TestCase):
         self.exchange_interface._converge_open_orders()
         #print(self.exchange_interface.live_orders)
         assert self.exchange_interface.live_orders == from_exchange
+        self.exchange_interface.live_orders = []
+        self.exchange_interface._converge_open_orders()
+        assert self.exchange_interface.live_orders == from_exchange
 
     @patch('market_maker.bitmex.BitMEX')
     @patch('market_maker.paper_trading.PaperTrading')

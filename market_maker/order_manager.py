@@ -257,6 +257,7 @@ class OrderManager:
         existing_orders = self.exchange.get_orders()
 
 
+
     def prices_to_orders(self, buyprice, sellprice, buyamount = 100, sellamount = 100, theo=-1):
         tickLog = self.exchange.get_instrument()['tickLog']
         to_amend = []
@@ -552,6 +553,8 @@ class OrderManager:
             self.print_status()
 
         while True:
+            # Remove comment to drop system into debugger, great to understand issues 
+            #import pdb; pdb.set_trace()
             if self.settings.BACKTEST:
                 try:
                     self.exchange.wait_update()

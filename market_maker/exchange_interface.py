@@ -226,7 +226,21 @@ class ExchangeInterface:
     def _converge_open_orders(self):
         orders = self.bitmex.open_orders() 
         time = self._current_timestamp() 
-        new_live_orders = []
+        to_delete = []
+        for index1 in range(len(self.live_orders)):
+            if 'submission_time' in self.live_orders[index1] and \
+                    time  > self.live_orders[index1]['submission_time'] + 5:
+                        to_delete.append(index1)
+                        continue
+            for index2 in range(len(orders)):
+                if  self.live_orders[index1]["clOrdID"] == \
+                        orders[index2]["clOrdID"]:
+                        to_delete.append(index1)
+        for index in reversed(sorted(to_delete)):
+            del self.live_orders[index]
+        self.live_orders.extend(orders)
+
+    def extra_code(self):
         for order in self.live_orders:
             matched_order = [o for o in orders if \
                                 o["clOrdID"] == order["clOrdID"]]
@@ -296,18 +310,18 @@ class ExchangeInterface:
         if self.settings.PAPERTRADING:
             self.paper.cancel_all_orders()
             self.paper.track_orders_created(orders)
-        if self.settings.compare is not True:
 
-            if self.dry_run and self.settings.PAPERTRADING == False:
-                return orders
+        if self.dry_run and self.settings.PAPERTRADING == False:
+            return orders
 
-            if self.settings.PAPERTRADING:
-                return orders
+        if self.settings.PAPERTRADING:
+            return orders
 
-            return self.bitmex.amend_bulk_orders(orders)
-        else:
+        result = self.bitmex.amend_bulk_orders(orders)
+        # let's remove live_orders which may be gettings stale
+        self.live_orders = []
+        return result
 
-            return self.bitmex.amend_bulk_orders(orders), orders
 
     def _generate_clOrdID(self):
         return self.orderIDPrefix + base64.b64encode(uuid.uuid4().bytes).decode('utf8').rstrip('=\n')
