@@ -80,7 +80,7 @@ class OrderManager:
             self.starting_qty = self.exchange.get_delta()
         self.running_qty = self.starting_qty
         self.reset()
-
+        self.amend_error_counter = 0
 
 
     def close_log_files(self):
@@ -249,6 +249,14 @@ class OrderManager:
 
         return {'price': price, 'orderQty': quantity, 'side': "Buy" if index < 0 else "Sell"}
 
+    
+
+    def state_to_orders(self, buyprice, sellprice, 
+        buyamount = 100, sellamount = 100, tags = {}):
+        tickLog = self.exchange.get_instrument()['tickLog']
+        existing_orders = self.exchange.get_orders()
+
+
     def prices_to_orders(self, buyprice, sellprice, buyamount = 100, sellamount = 100, theo=-1):
         tickLog = self.exchange.get_instrument()['tickLog']
         to_amend = []
@@ -256,6 +264,11 @@ class OrderManager:
         existing_orders = self.exchange.get_orders()
         if len(existing_orders) > 4:
             logger.warn("Number of orders exceeds 4, canceling all orders")
+            self.exchange.cancel_all_orders()
+            return
+        if self.amend_error_counter > 5:
+            logger.warn("Number of amend failures exceeds 5, canceling all orders")
+            self.amend_error_counter = 0
             self.exchange.cancel_all_orders()
             return
         buy_present = sell_present = False
@@ -274,6 +287,8 @@ class OrderManager:
             midprice = theo
         if len(existing_orders) > 1:
             for order in existing_orders:
+                if 'submission_time' in order:
+                    continue
                 if order['side'] == "Buy":
                     if order['price'] != buyprice:                     
                         neworder = {'orderID': order['orderID'], 
@@ -326,8 +341,9 @@ class OrderManager:
                     if errorObj['error']['message'] == 'Invalid ordStatus':
                         logger.warn("Amending failed. Waiting for order data to converge and retrying.")
                         logger.warn("Failed on orders: %s" % json.dumps(to_amend))
-                        sleep(0.5)
-                        return self.place_orders()
+                        #sleep(0.5)
+                        #return self.place_orders()
+                        self.amend_error_counter += 1
                     else:
                         logger.error("Unknown error on amend: %s. Exiting" % errorObj)
                         sys.exit(1)
