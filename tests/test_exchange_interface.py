@@ -47,6 +47,7 @@ class Test_Exchange_Interface_Module(TestCase):
         self.settings_mock.DRY_RUN = False
         self.settings_mock.BACKTEST = True
         self.settings_mock.SYMBOL = 'XBTUSD'
+        self.settings_mock.API_REST_INTERVAL = 0.0
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
 
@@ -125,11 +126,11 @@ class Test_Exchange_Interface_Module(TestCase):
         print(bitmex.return_value.mock_calls)
         bitmex.return_value.create_bulk_orders.assert_called()
 
-
+    @patch('time.sleep')
     @patch('market_maker.bitmex.BitMEX')
     @patch('market_maker.paper_trading.PaperTrading')
     @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
-    def test_cancels_order_in_live(self, backtest, paper, bitmex): 
+    def test_cancels_order_in_live(self, backtest, paper, bitmex, sleep): 
         self.settings_mock.ORDERID_PREFIX  = "live_"
         self.settings_mock.BACKTEST = False
         self.settings_mock.PAPERTRADING = False
@@ -255,6 +256,7 @@ class Test_Exchange_Interface_Module(TestCase):
         self.exchange_interface._converge_open_orders()
         #print(self.exchange_interface.live_orders)
         assert self.exchange_interface.live_orders == from_exchange
+        # If the exchange reports orders, those should be held in live_orders
         self.exchange_interface.live_orders = []
         self.exchange_interface._converge_open_orders()
         assert self.exchange_interface.live_orders == from_exchange
@@ -298,7 +300,6 @@ class Test_Exchange_Interface_Module(TestCase):
         self.settings_mock.ORDERID_PREFIX  = "live_"
         self.settings_mock.PAPERTRADING = False
         self.settings_mock.BACKTEST = False
-        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
         from market_maker.exchange_interface import ExchangeInterface
         self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
         to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
@@ -312,4 +313,116 @@ class Test_Exchange_Interface_Module(TestCase):
         self.exchange_interface.create_bulk_orders(to_create)
         orders = self.exchange_interface.get_orders()
         assert orders[0]['orderID'] == 57632
+
+    @patch('time.sleep')
+    @patch('market_maker.bitmex.BitMEX')
+    @patch('market_maker.paper_trading.PaperTrading')
+    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+    def test_error_thrown_when_amending_cancelled_order(self, 
+            backtest, paper, bitmex, sleep): 
+        self.settings_mock.ORDERID_PREFIX  = "live_"
+        self.settings_mock.PAPERTRADING = False
+        self.settings_mock.BACKTEST = False 
+        bitmex.return_value.instrument.return_value = {'tickLog':1}
+        from market_maker.exchange_interface import ExchangeInterface
+        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)       
+        to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
+            "theo": 6346.75, "last_price": 6346.5, "orderID": 57632, 
+            "coinbase_mid": 6349.985, "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", 
+            "symbol": "XBTUSD", "execInst": "ParticipateDoNotInitiate"}]
+        from_exchange = [{"orderID": "9bb6b5da-729a-b2b3-c7a1-614f9b222784", 
+            "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", "clOrdLinkID": "", 
+            "account": 779788, "symbol": "XBTUSD", "side": "Buy", 
+            "simpleOrderQty": None, "orderQty": 100, "price": 6346, 
+            "displayQty": None, "stopPx": None, "pegOffsetValue": None, 
+            "pegPriceType": "", "currency": "USD", "settlCurrency": "XBt", 
+            "ordType": "Limit", "timeInForce": "GoodTillCancel", 
+            "execInst": "ParticipateDoNotInitiate", "contingencyType": "", 
+            "exDestination": "XBME", "ordStatus": "New", "triggered": "", 
+            "workingIndicator": False, "ordRejReason": "", 
+            "simpleLeavesQty": None, "leavesQty": 100, "simpleCumQty": None, 
+            "cumQty": 0, "avgPx": None, "multiLegReportingType": "SingleSecurity",
+            "text": "Submitted via API.", "transactTime": "2018-11-09T17:40:40.755Z",
+            "timestamp": "2018-11-09T17:40:40.755Z"}]
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        self.exchange_interface._current_timestamp = Mock()
+        self.exchange_interface._current_timestamp.return_value = ts
+        # Key parts of the test
+        self.exchange_interface.create_bulk_orders(to_create)
+        orders = self.exchange_interface.get_orders()
+        self.exchange_interface.cancel_order(orders[0])
+        the_keys = ["orderID", "clOrdID", "symbol", 'orderQty', 'side']
+        amended_order = dict((key,value) for key, value in \
+             orders[0].items() if key in the_keys)
+        amended_order['price'] = 6345.0
+        self.assertRaises(ValueError, 
+            self.exchange_interface.amend_bulk_orders([amended_order]))
+
+
+
+
+
+
+
+class Test_exchange_interface_single_setup(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.settings_mock = MagicMock()
+        cls.settings_mock.ORDERID_PREFIX  = "live_"
+        cls.settings_mock.PAPERTRADING = False
+        cls.settings_mock.BACKTEST = False
+        cls.settings_mock.DRY_RUN = False
+        cls.settings_mock.SYMBOL = 'XBTUSD'
+
+        cls.bitmex_patch = patch('market_maker.bitmex.BitMEX')
+        cls.paper_trading_patch = patch('market_maker.paper_trading.PaperTrading')
+        cls.backtest_patch = patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+
+        cls.bitmex = cls.bitmex_patch.start()
+        cls.paper = cls.paper_trading_patch.start()
+        cls.backtest = cls.backtest_patch.start()
+
+        from market_maker.exchange_interface import ExchangeInterface
+        cls.exchange_interface = ExchangeInterface(settings=cls.settings_mock)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.bitmex_patch.stop()
+        cls.paper_trading_patch.stop()
+        cls.backtest_patch.stop()
+
+    def test_return_promise_until_exchange_acks_order(self):
+        to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
+            "theo": 6346.75, "last_price": 6346.5, "orderID": 57632, 
+            "coinbase_mid": 6349.985, "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", 
+            "symbol": "XBTUSD", "execInst": "ParticipateDoNotInitiate"}]
+        # submit order without changing time, should be rejected
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        self.exchange_interface._current_timestamp = Mock()
+        self.exchange_interface._current_timestamp.return_value = ts
+        self.exchange_interface.create_bulk_orders(to_create)
+        orders = self.exchange_interface.get_orders()
+        assert orders[0]['orderID'] == 57632
+
+    def test_local_orders_live_5_seconds(self):
+        self.exchange_interface.live_orders == []
+        self.bitmex.return_value.open_orders.return_value = []
+        to_create  = [{"price": 6346.0, "orderQty": 100, "side": "Buy", 
+            "theo": 6346.75, "last_price": 6346.5, "orderID": 57632, 
+            "coinbase_mid": 6349.985, "clOrdID": "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ", 
+            "symbol": "XBTUSD", "execInst": "ParticipateDoNotInitiate"}]
+        self.exchange_interface._generate_clOrdID = Mock()
+        self.exchange_interface._generate_clOrdID.return_value = \
+            "mm_bitmex_EPx3mojZT4yG2L0Zd9ylMQ"
+        # set up timestamp 
+        ts = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+        self.exchange_interface._current_timestamp = Mock()
+        self.exchange_interface._current_timestamp.return_value = ts
+        self.exchange_interface.create_bulk_orders(to_create)
+        self.exchange_interface._current_timestamp.return_value = ts + 6
+        print(ts + 6)
+        self.exchange_interface._converge_open_orders()
+        print(self.exchange_interface.live_orders)
+        # All orders should have timed out by now
+        assert self.exchange_interface.live_orders == []
 

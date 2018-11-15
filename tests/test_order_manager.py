@@ -80,13 +80,16 @@ class Test_OrderManager(TestCase):
         self.logging = MagicMock()
 
         self.log = MagicMock()
+        self.sleep = MagicMock()
         modules = {
             'market_maker.settings': self.settings_mock,
             'market_maker.exchange_interface' : self.exchange_interface,
             'market_maker.coinbase.order_book' : self.coinbase_book,
             'market_maker.utils.log.setup_custom_logger' : self.log,
             'market_maker.market_maker.log' : self.log,
-            'logging' : self.logging
+            'logging' : self.logging,
+            'time.sleep' : self.sleep
+
         }
         self.settings_mock.DRY_RUN = False
         self.settings_mock.BACKTEST = True
@@ -217,4 +220,5 @@ class Test_OrderManager(TestCase):
         # No orders should have been created
         assert self.om.exchange.create_bulk_orders.call_args is None
 
-    
+    def test_prices_to_orders_with_promised_orders(self):
+        pass
