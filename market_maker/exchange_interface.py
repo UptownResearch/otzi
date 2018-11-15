@@ -68,14 +68,19 @@ class ExchangeInterface:
         self.rate_limit_remaining = 0
         self.last_order_time = None
         self.live_orders = []
+        self.cancelled_orders = []
 
     def cancel_order(self, order):
         tickLog = self.get_instrument()['tickLog']
+
         if self.settings.PAPERTRADING:
             logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
             return self.paper.cancel_order(order['orderID'])
 
         logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+        # regardless of whether an order is sucessfully canceled, we mark
+        # it as a canceled order
+        self.cancelled_orders.append(order['orderID'])
         while True:
             try:
                 self.bitmex.cancel(order['orderID'])
@@ -103,8 +108,12 @@ class ExchangeInterface:
         # In certain cases, a WS update might not make it through before we call this.
         # For that reason, we grab via HTTP to ensure we grab them all.
         orders = self.bitmex.http_open_orders()
+        print(orders)
         for order in orders:
             logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+            # regardless of whether an order is sucessfully canceled, we mark
+            # it as a canceled order
+            self.cancelled_orders.append(order['orderID'])
 
         orderIDs = [order['orderID'] for order in orders]
         if len(orders):
@@ -308,14 +317,20 @@ class ExchangeInterface:
     def amend_bulk_orders(self, orders):
         self.last_order_time = self._current_timestamp() 
         if self.settings.PAPERTRADING:
+            existing = self.paper.get_orders()
+            if len(existing) > len(orders):
+                # The existing code doesn't handle amendments of some orders in backtest, so throw an error
+                raise Exception("In Backtest, called amend with only some, not all orders")
             self.paper.cancel_all_orders()
             self.paper.track_orders_created(orders)
+            return orders
 
         if self.dry_run and self.settings.PAPERTRADING == False:
             return orders
 
-        if self.settings.PAPERTRADING:
-            return orders
+        for order in orders:
+            if order['orderID'] in self.cancelled_orders:
+                raise ValueError('Attempting to amend cancelled order with ID:%s' % order['orderID'])
 
         result = self.bitmex.amend_bulk_orders(orders)
         # let's remove live_orders which may be gettings stale
