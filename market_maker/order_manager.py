@@ -1,20 +1,18 @@
 from __future__ import absolute_import
-from time import sleep
-import sys
-import os
-from datetime import datetime
-from os.path import getmtime
-import random
-import requests
-import atexit
-import signal
-import json
-import base64
-import uuid
 
+import atexit
+import json
+import os
+import signal
+import sys
+from math import floor, ceil
 # Find code directory relative to our directory
 from os.path import dirname, abspath, join
-import sys
+from os.path import getmtime
+from time import sleep
+
+import requests
+
 THIS_DIR = dirname(__file__)
 #CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
 CODE_DIR = abspath(join(THIS_DIR, '..' ))
@@ -81,6 +79,7 @@ class OrderManager:
         self.running_qty = self.starting_qty
         self.reset()
         self.amend_error_counter = 0
+        self.cancelled_orders = []
 
 
     def close_log_files(self):
@@ -98,6 +97,12 @@ class OrderManager:
         # Create orders and converge.
         # Suspect that creating orders outside of loop is causing issues in backtests
         # self.place_orders()
+
+    def ceilNearest(self, amount, roundAmount):
+        return ceil(amount * (1.0 / roundAmount)) / (1.0 / roundAmount)
+
+    def floorNearest(self, amount, roundAmount):
+        return floor(amount * (1.0 / roundAmount)) / (1.0 / roundAmount)
 
     def print_status(self):
         #don't print status if backtesting
@@ -249,14 +254,199 @@ class OrderManager:
 
         return {'price': price, 'orderQty': quantity, 'side': "Buy" if index < 0 else "Sell"}
 
-    
+    def get_order_with_role(self, orders, role):
+        '''Return first order with role.'''
+        for order in orders:
+            if order.get('side', "") == role and \
+                order.get('orderID', "") not in self.cancelled_orders and \
+                order.get('ordStatus', "") not in  ['Filled', 'Canceled']:
+                return order
+        return None
 
-    def state_to_orders(self, buyprice, sellprice, 
+    def get_all_orders_with_role(self, orders, role):
+        '''Return all orders with role.'''
+        ret_orders = []
+        for order in orders:
+            if order.get('side', "") == role and \
+                order.get('orderID', "") not in self.cancelled_orders and \
+                order.get('ordStatus', "") not in  ['Filled', 'Canceled']:
+                ret_orders.append(order)
+        return ret_orders
+
+    def cancel_all_orders(self, existing_orders):
+        for order in existing_orders:
+            if 'orderID' not in order:
+                logger.warning("Can't Cancel - No orderID in order: %s" % json.dumps(order))
+                continue
+            if isinstance(order['orderID'], int):
+                logger.warning("Can't Cancel - OrderID length must be 36 characters: %s" % json.dumps(order))
+                continue
+            self.exchange.cancel_order(order)
+            self.cancelled_orders.append(order['orderID'])
+        self.exchange.cancel_all_orders()
+
+    def cancel_orders(self, orders):
+        for order in orders:
+            if 'orderID' not in order:
+                logger.warning("No orderID in order: %s" % json.dumps(order))
+            if isinstance(order['orderID'], int):
+                logger.warning("OrderID must be a string (perhaps you are canceling a promised order: %s" % \
+                            json.dumps(order))
+            self.exchange.cancel_order(order)
+            self.cancelled_orders.append(order['orderID'])
+
+    def create_cancel_orders_from_orders(self, orders):
+        to_cancel = []
+        for order in orders:
+            if not self.is_live_order(order):
+                logger.warning("Waiting to cancel order: %s" % json.dumps(order))
+                continue
+            the_keys = ['orderID', 'side', 'orderQty', 'price']
+            order_to_cancel = dict((key, value) for key, value in \
+                                   order.items() if key in the_keys)
+            to_cancel.append(order_to_cancel)
+        return to_cancel
+
+    def is_live_order(self, order):
+        ''' Checks order for liveness. Liveness means that it is an order confirmed
+        by the exchange to be live, and is not a promise created by exchange_interface to
+        record an expected live order.'''
+        if order.get('ordStatus', "") not in ['Filled', 'Canceled'] and \
+                'submission_time' not in order and 'ordStatus' in order:
+            return True
+        else:
+            return False
+
+    def live_orders(self, orders):
+        '''Tries to determine orders that are live on the exchange.'''
+        ret_orders = []
+        for order in orders:
+            if self.is_live_order(order):
+                ret_orders.append(order)
+        return ret_orders
+
+    def desired_to_orders(self, buyprice, sellprice,
         buyamount = 100, sellamount = 100, tags = {}):
         tickLog = self.exchange.get_instrument()['tickLog']
         existing_orders = self.exchange.get_orders()
+        to_create = []
+        to_amend = []
+        to_cancel = []
+
+        # Perform some initial checks
+        if len(self.live_orders(existing_orders)) > 4:
+            logger.warning("Number of orders exceeds 4, canceling all orders")
+            self.cancel_orders(existing_orders)
+            return
+
+        # Manage Buy Order
+        buy_orders = self.get_all_orders_with_role(existing_orders, 'Buy')
+        if buy_orders != []:
+            buy_order = buy_orders[0]
+            if len(buy_orders) > 1:
+                # cancel all orders above 1
+                to_cancel.extend(self.create_cancel_orders_from_orders(buy_orders[1:]))
+
+            # If a recently submitted order, let's not amend
+            if self.is_live_order(buy_order) and buy_order['price'] != buyprice:
+                the_keys = ['orderID', 'side']
+                amended_order = dict((key, value) for key, value in \
+                                     buy_order.items() if key in the_keys)
+                amended_order['price'] = buyprice
+                amended_order['orderQty'] = buyamount
+                amended_order.update(tags)
+                if amended_order['orderQty'] > 0:
+                        to_amend.append(amended_order)
+        else:
+            # let's create a new order
+            buyorder = {'price': buyprice, 'orderQty': buyamount, 'side': "Buy",
+                        'orderID': random.randint(0, 100000)}
+            buyorder.update(tags)
+            if buyorder['orderQty'] > 0:
+                to_create.append(buyorder)
+
+        # Manage Sell Order
+        sell_orders = self.get_all_orders_with_role(existing_orders, 'Sell')
+        if sell_orders != []:
+            sell_order = sell_orders[0]
+            if len(sell_orders) > 1:
+                # cancel all orders above 1
+                to_cancel.extend(self.create_cancel_orders_from_orders(sell_orders[1:]))
+            # If a recently submitted order, let's not amend
+            if self.is_live_order(sell_order) and sell_order['price'] != sellprice:
+                the_keys = ['orderID', 'side']
+                amended_order = dict((key, value) for key, value in \
+                                     sell_order.items() if key in the_keys)
+                amended_order['price'] = sellprice
+                amended_order['orderQty'] = sellamount
+                amended_order.update(tags)
+                if amended_order['orderQty'] > 0:
+                        to_amend.append(amended_order)
+        else:
+            # let's create a new order
+            sellorder = {'price':  sellprice, 'orderQty': sellamount, 'side': "Sell",
+            'orderID': random.randint(0, 100000)}
+            sellorder.update(tags)
+            if sellorder['orderQty'] > 0:
+                to_create.append(sellorder)
+
+        # Amend orders as needed
+        if len(to_amend) > 0:
+            self.amend_orders( to_amend, existing_orders)
+        # Create any needed new orders
+        if len(to_create) > 0:
+            self.create_new_orders(to_create)
+        # Cancel any needed orders
+        if len(to_cancel) > 0:
+            self.cancel_orders(to_cancel)
+
+    def create_new_orders(self, to_create):
+        tickLog = self.exchange.get_instrument()['tickLog']
+        logger.info("Creating %d orders:" % (len(to_create)))
+        #compare_logger.info("Creating %d orders:" % (len(to_create)))
+        for order in reversed(to_create):
+            logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+            #compare_logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+        self.exchange.create_bulk_orders(to_create)
 
 
+    def amend_orders(self, to_amend, existing_orders):
+        tickLog = self.exchange.get_instrument()['tickLog']
+        logger.info("Amending Orders %s" % json.dumps(to_amend))
+        for amended_order in reversed(to_amend):
+            reference_order = [o for o in existing_orders if o['orderID'] == amended_order['orderID']][0]
+            logger.info("Amending %4s: %d @ %.*f to %d @ %.*f (%+.*f)" % (
+                amended_order['side'],
+                reference_order['leavesQty'], tickLog, reference_order['price'],
+                (amended_order['orderQty'] - reference_order['cumQty']), tickLog, amended_order['price'],
+                tickLog, (amended_order['price'] - reference_order['price'])
+            ))
+        # This can fail if an order has closed in the time we were processing.
+        # The API will send us `invalid ordStatus`, which means that the order's status (Filled/Canceled)
+        # made it not amendable.
+        # If that happens, we need to catch it and re-tick.
+        try:
+            self.exchange.amend_bulk_orders(to_amend)
+        except requests.exceptions.HTTPError as e:
+            errorObj = e.response.json()
+            if errorObj['error']['message'] == 'Invalid ordStatus':
+                logger.warn("Amending failed. Waiting for order data to converge and retrying.")
+                logger.warn("Failed on orders: %s" % json.dumps(to_amend))
+                for order in to_amend:
+                    self.cancelled_orders.append(order['orderID'])
+                #try:
+                #    self.cancel_orders(to_amend)
+                #except:
+                #    logger.warn("Couldn't cancel orders!: %s" % json.dumps(to_amend))
+                #    raise
+                # sleep(0.5)
+                # return self.place_orders()
+                self.amend_error_counter += 1
+            else:
+                logger.error("Unknown error on amend: %s. Exiting" % errorObj)
+                sys.exit(1)
+        except ValueError as e:
+            logger.error('Failed to amend order (Ignoring amend request): ' + str(e))
 
     def prices_to_orders(self, buyprice, sellprice, buyamount = 100, sellamount = 100, theo=-1):
         tickLog = self.exchange.get_instrument()['tickLog']
@@ -264,16 +454,15 @@ class OrderManager:
         to_create = []
         existing_orders = self.exchange.get_orders()
         if len(existing_orders) > 4:
-            logger.warn("Number of orders exceeds 4, canceling all orders")
+            logger.warning("Number of orders exceeds 4, canceling all orders")
             self.exchange.cancel_all_orders()
             return
         if self.amend_error_counter > 5:
-            logger.warn("Number of amend failures exceeds 5, canceling all orders")
+            logger.warning('Number of amend failures exceeds 5, canceling all orders')
             self.amend_error_counter = 0
             self.exchange.cancel_all_orders()
             return
         buy_present = sell_present = False
-        ticker = self.exchange.get_ticker()
         last_price = self.exchange.recent_trades()[-1]['price']
         coinbase_midprice = 0.0
         if not self.settings.BACKTEST:
@@ -320,34 +509,7 @@ class OrderManager:
                             pass
                     else:
                         sell_present = True
-                    
 
-            if len(to_amend) > 0:
-                for amended_order in reversed(to_amend):
-                    reference_order = [o for o in existing_orders if o['orderID'] == amended_order['orderID']][0]
-                    logger.info("Amending %4s: %d @ %.*f to %d @ %.*f (%+.*f)" % (
-                        amended_order['side'],
-                        reference_order['leavesQty'], tickLog, reference_order['price'],
-                        (amended_order['orderQty'] - reference_order['cumQty']), tickLog, amended_order['price'],
-                        tickLog, (amended_order['price'] - reference_order['price'])
-                    ))
-                # This can fail if an order has closed in the time we were processing.
-                # The API will send us `invalid ordStatus`, which means that the order's status (Filled/Canceled)
-                # made it not amendable.
-                # If that happens, we need to catch it and re-tick.
-                try:
-                    self.exchange.amend_bulk_orders(to_amend)
-                except requests.exceptions.HTTPError as e:
-                    errorObj = e.response.json()
-                    if errorObj['error']['message'] == 'Invalid ordStatus':
-                        logger.warn("Amending failed. Waiting for order data to converge and retrying.")
-                        logger.warn("Failed on orders: %s" % json.dumps(to_amend))
-                        #sleep(0.5)
-                        #return self.place_orders()
-                        self.amend_error_counter += 1
-                    else:
-                        logger.error("Unknown error on amend: %s. Exiting" % errorObj)
-                        sys.exit(1)
         elif len(existing_orders) == 1:
             for order in existing_orders:
                 side = "Buy" if order['side'] == "Sell" else "Sell"
@@ -367,13 +529,12 @@ class OrderManager:
             if sellorder['orderQty'] > 0: 
                 to_create.append(sellorder)
 
+        # Amend orders as needed
+        if len(to_amend) > 0:
+            self.amend_orders(to_amend, existing_orders)
+        # Create any needed new orders
         if len(to_create) > 0:
-            logger.info("Creating %d orders:" % (len(to_create)))
-            #compare_logger.info("Creating %d orders:" % (len(to_create)))
-            for order in reversed(to_create):
-                logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-                #compare_logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
-            self.exchange.create_bulk_orders(to_create)
+            self.create_new_orders(to_create)
 
 
 
