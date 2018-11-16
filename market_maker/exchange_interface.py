@@ -12,7 +12,6 @@ import base64
 import uuid
 import copy
 
-
 # Find code directory relative to our directory
 from os.path import dirname, abspath, join
 import sys
@@ -71,6 +70,7 @@ class ExchangeInterface:
         self.cancelled_orders = []
 
     def cancel_order(self, order):
+        self.last_order_time = self._current_timestamp()
         tickLog = self.get_instrument()['tickLog']
 
         if self.settings.PAPERTRADING:
@@ -97,7 +97,31 @@ class ExchangeInterface:
                 new_live_orders.append(c_order)
         self.live_orders = new_live_orders
 
+
+    def cancel_bulk_orders(self, orders):
+        self.last_order_time = self._current_timestamp()
+
+        if self.dry_run and self.settings.PAPERTRADING == False:
+            return orders
+
+        if self.settings.PAPERTRADING:
+            for order in orders:
+                self.paper.cancel_order(order['orderID'])
+
+        tickLog = self.get_instrument()['tickLog']
+        orderIDs = []
+        for order in orders:
+            logger.info("Canceling: %s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+            # regardless of whether an order is sucessfully canceled, we mark
+            # it as a canceled order
+            self.cancelled_orders.append(order['orderID'])
+            orderIDs.append(order['orderID'])
+        if len(orders):
+            self.bitmex.cancel(orderIDs)
+        self.update_live_orders(orderIDs)
+
     def cancel_all_orders(self):
+        self.last_order_time = self._current_timestamp()
         if self.dry_run and self.settings.PAPERTRADING == False:
             return
         if self.settings.PAPERTRADING:
@@ -118,7 +142,10 @@ class ExchangeInterface:
         orderIDs = [order['orderID'] for order in orders]
         if len(orders):
             self.bitmex.cancel(orderIDs)
+        self.update_live_orders( orderIDs)
 
+
+    def update_live_orders(self, orderIDs):
         new_live_orders = []
         for c_order in self.live_orders:
             if 'orderID' in c_order and \
@@ -249,20 +276,6 @@ class ExchangeInterface:
             del self.live_orders[index]
         self.live_orders.extend(orders)
 
-    def extra_code(self):
-        for order in self.live_orders:
-            matched_order = [o for o in orders if \
-                                o["clOrdID"] == order["clOrdID"]]
-            if len(matched_order) > 0:
-                new_live_orders.append(matched_order[0])
-            else:
-                #let's keep local live orders around for only 5 seconds
-                if 'submission_time' in order and \
-                    time  > order['submission_time'] + 5:
-                        continue
-                new_live_orders.append(order)
-        self.live_orders = new_live_orders
-
     def get_highest_buy(self):
         buys = [o for o in self.get_orders() if o['side'] == 'Buy']
         if not len(buys):
@@ -355,11 +368,13 @@ class ExchangeInterface:
         for order in orders:
             delete = False
             for e_order in self.live_orders:
-                if order['side'] == e_order['side'] and \
-                    order['submission_time'] < e_order['submission_time'] + \
-                    MIN_TIME_BETWEEN_ORDERS:
-                        logger.warn("Rejected order: %s" % json.dumps(order))
-                        delete = True
+                if 'submission_time' in e_order:
+                    if order['side'] == e_order['side'] and \
+                        order['submission_time'] < e_order['submission_time'] + \
+                        MIN_TIME_BETWEEN_ORDERS:
+                            logger.warning("Rejected order (rate limit): %s" % \
+                                           json.dumps(order))
+                            delete = True
             if not delete:
                 acceptable_orders.append(order)
 
@@ -374,19 +389,6 @@ class ExchangeInterface:
                 order.pop('submission_time', None)
             return self.bitmex.create_bulk_orders(acceptable_orders)
 
-    def cancel_bulk_orders(self, orders):
-        self.last_order_time = self._current_timestamp() 
-        if self.settings.compare is not True:
-            if self.dry_run and self.settings.PAPERTRADING == False:
-                return orders
-
-            if self.settings.PAPERTRADING:
-                return orders
-
-            return self.bitmex.cancel([order['orderID'] for order in orders])
-        else:
-
-            return self.bitmex.cancel([order['orderID'] for order in orders])
 
     def recent_trades(self):
         return self.bitmex.recent_trades()
