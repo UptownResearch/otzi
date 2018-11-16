@@ -92,7 +92,7 @@ class BitMEX(object):
         query = {}
         if filter is not None:
             query['filter'] = json.dumps(filter)
-        return self._curl_bitmex(path='instrument', query=query, verb='GET')
+        return self._curl_bitmex(path='instrument', query=query, verb='GET', rethrow_errors=True)
 
     def market_depth(self, symbol):
         """Get market depth / orderbook."""
@@ -201,7 +201,7 @@ class BitMEX(object):
         }
         order_logger.info(json.dumps(order_out))
 
-        return self._curl_bitmex(path=endpoint, postdict=postdict, verb="POST")
+        return self._curl_bitmex(path=endpoint, postdict=postdict, verb="POST", rethrow_errors=True)
 
     @authentication_required
     def amend_bulk_orders(self, orders):
@@ -233,7 +233,7 @@ class BitMEX(object):
             'data' : postdict
         }
         order_logger.info(json.dumps(order_out))        
-        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='POST', max_retries=3)
+        return self._curl_bitmex(path='order/bulk', postdict=postdict, verb='POST', max_retries=3, rethrow_errors=True)
 
     @authentication_required
     def open_orders(self):
@@ -250,7 +250,8 @@ class BitMEX(object):
                 'filter': json.dumps({'ordStatus.isTerminated': False, 'symbol': self.symbol}),
                 'count': 500
             },
-            verb="GET"
+            verb="GET",
+            rethrow_errors=True
         )
         # Only return orders that start with our clOrdID prefix.
         return [o for o in orders if str(o['clOrdID']).startswith(self.orderIDPrefix)]
@@ -269,7 +270,7 @@ class BitMEX(object):
             'data' : postdict
         }
         order_logger.info(json.dumps(order_out))  
-        return self._curl_bitmex(path=path, postdict=postdict, verb="DELETE")
+        return self._curl_bitmex(path=path, postdict=postdict, verb="DELETE", rethrow_errors=True)
 
     @authentication_required
     def withdraw(self, amount, fee, address):
@@ -280,7 +281,7 @@ class BitMEX(object):
             'currency': 'XBt',
             'address': address
         }
-        return self._curl_bitmex(path=path, postdict=postdict, verb="POST", max_retries=0)
+        return self._curl_bitmex(path=path, postdict=postdict, verb="POST", max_retries=0, rethrow_errors=True)
 
     def _check_new_fills():
         newfills = new_fills()
