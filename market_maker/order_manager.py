@@ -288,10 +288,12 @@ class OrderManager:
     def cancel_orders(self, orders):
         for order in orders:
             if 'orderID' not in order:
-                logger.warning("No orderID in order: %s" % json.dumps(order))
+                logger.warning("Can't Cancel - No orderID in order: %s" % json.dumps(order))
+                continue
             if isinstance(order['orderID'], int):
-                logger.warning("OrderID must be a string (perhaps you are canceling a promised order: %s" % \
+                logger.warning("Can't Cancel - OrderID must be a string (perhaps you are canceling a promised order: %s" % \
                             json.dumps(order))
+                continue
             self.exchange.cancel_order(order)
             self.cancelled_orders.append(order['orderID'])
 
