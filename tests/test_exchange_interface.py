@@ -413,6 +413,18 @@ class Test_Exchange_Interface_Module(TestCase):
             self.exchange_interface.amend_bulk_orders, ([amended_order]))
 
 
+        @patch('market_maker.bitmex.BitMEX')
+        @patch('market_maker.paper_trading.PaperTrading')
+        @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
+        def test_get_ticker_time(self, backtest, paper, bitmex):
+            self.settings_mock.ORDERID_PREFIX = "live_"
+            self.settings_mock.BACKTEST = False
+            from market_maker.exchange_interface import ExchangeInterface
+            self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
+            self.exchange_interface.get_ticker_time()
+            assert bitmex.return_value.get_ticker_time.called == True
+
+
 class Test_exchange_interface_single_setup(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -474,13 +486,4 @@ class Test_exchange_interface_single_setup(TestCase):
         print(self.exchange_interface.live_orders)
         # All orders should have timed out by now
         assert self.exchange_interface.live_orders == []
-
-    @patch('market_maker.bitmex.BitMEX')
-    @patch('market_maker.paper_trading.PaperTrading')
-    @patch('market_maker.backtest.bitmexbacktest.BitMEXbacktest')
-    def test_is_live_order(self, backtest, paper, bitmex):
-        self.settings_mock.ORDERID_PREFIX  = "live_"
-        self.settings_mock.BACKTEST = False
-        from market_maker.exchange_interface import ExchangeInterface
-        self.exchange_interface = ExchangeInterface(settings=self.settings_mock)
 

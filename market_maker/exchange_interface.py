@@ -311,6 +311,11 @@ class ExchangeInterface:
             symbol = self.symbol
         return self.bitmex.ticker_data(symbol)
 
+    def get_ticker_time(self, symbol=None):
+        if symbol is None:
+            symbol = self.symbol
+        return self.bitmex.get_ticker_time(symbol)
+
     def is_open(self):
         """Check that websockets are still open."""
         return not self.bitmex.ws.exited

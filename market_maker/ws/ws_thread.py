@@ -49,6 +49,7 @@ class BitMEXWebsocket():
         self.ordersreturned = None 
         self.last_action = None
         self.recorded_action_time = None
+        self.instrument_time = {}
 
     def __del__(self):
         self.exit()
@@ -144,6 +145,10 @@ class BitMEXWebsocket():
 
         # The instrument has a tickSize. Use it to round values.
         return {k: toNearest(float(v or 0), instrument['tickSize']) for k, v in iteritems(ticker)}
+
+    def get_ticker_time(self, symbol):
+        '''Returns the time when the ticker was last updated.'''
+        return self.instrument_time.get(symbol, "")
 
     def funds(self):
         return self.data['margin'][0]
@@ -276,6 +281,13 @@ class BitMEXWebsocket():
         message = json.loads(message)
         table = message['table'] if 'table' in message else None
         action = message['action'] if 'action' in message else None
+
+        # Record update time of instrument
+        if table == 'instrument':
+            for line in message['data']:
+                self.instrument_time[line['symbol']] = line['timestamp']
+
+
         try:
             if 'subscribe' in message:
                 if message['success']:

@@ -84,6 +84,12 @@ class BitMEX(object):
             symbol = self.symbol
         return self.ws.get_ticker(symbol)
 
+    def get_ticker_time(self, symbol=None):
+        """Get time ticker reported being updated for symbol."""
+        if symbol is None:
+            symbol = self.symbol
+        return self.ws.get_ticker_time(symbol)
+
     def instrument(self, symbol):
         """Get an instrument's details."""
         return self.ws.get_instrument(symbol)
