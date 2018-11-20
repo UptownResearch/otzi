@@ -741,7 +741,7 @@ class OrderManager:
                         self.restart()
                     self.print_status()  # Print skew, delta, etc
                 else:
-                    periodically_call(print_output, amount=10)
+                    periodically_call(print_output, amount=50)
                 #The following should now be taken care of by wait_update
                 #self.exchange.loop()
 
