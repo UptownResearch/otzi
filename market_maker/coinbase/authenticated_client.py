@@ -11,6 +11,14 @@ import requests
 import base64
 import json
 from requests.auth import AuthBase
+
+# Find code directory relative to our directory
+from os.path import dirname, abspath, join
+import sys
+THIS_DIR = dirname(__file__)
+CODE_DIR = abspath(join(THIS_DIR, '..', '..' ))
+sys.path.append(CODE_DIR)
+
 from market_maker.coinbase.public_client import PublicClient
 from market_maker.coinbase.cbpro_auth import CBProAuth
 
