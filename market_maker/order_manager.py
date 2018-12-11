@@ -108,54 +108,24 @@ class OrderManager:
         #don't print status if backtesting
         if self.settings.BACKTEST is True:
             return
-        if self.settings.compare is not True:
-            """Print the current MM status."""
 
-            margin = self.exchange.get_margin()
-            position = self.exchange.get_position()
-            self.running_qty = self.exchange.get_delta()
-            tickLog = self.exchange.get_instrument()['tickLog']
-            self.start_XBt = margin["marginBalance"]
+        """Print the current MM status."""
 
-            logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
-            logger.info("Current Contract Position: %d" % self.running_qty)
-            if self.settings.CHECK_POSITION_LIMITS:
-                logger.info("Position limits: %d/%d" % (self.settings.MIN_POSITION, self.settings.MAX_POSITION))
-            if position['currentQty'] != 0:
-                logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
-                logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
-            logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - self.starting_qty))
-            logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
-        else:
-            """Print the current MM status."""
+        margin = self.exchange.get_margin()
+        position = self.exchange.get_position()
+        self.running_qty = self.exchange.get_delta()
+        tickLog = self.exchange.get_instrument()['tickLog']
+        self.start_XBt = margin["marginBalance"]
 
-            margin, paper_margin = self.exchange.get_margin()
-            position, paper_position = self.exchange.get_position()
-            self.running_qty, paper_delta = self.exchange.get_delta()
-            tickLog = self.exchange.get_instrument()['tickLog']
-            self.start_XBt = margin["marginBalance"]
-            paper_start_XBt = paper_margin["marginBalance"]
-
-            logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
-            logger.info("Current Contract Position: %d" % self.running_qty)
-            if self.settings.CHECK_POSITION_LIMITS:
-                logger.info("Position limits: %d/%d" % (self.settings.MIN_POSITION, self.settings.MAX_POSITION))
-            if position['currentQty'] != 0:
-                logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
-                logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
-            logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - self.starting_qty))
-            logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
-
-
-            compare_logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(paper_start_XBt))
-            compare_logger.info("Current Contract Position: %d" % paper_delta)
-            if self.settings.CHECK_POSITION_LIMITS:
-                compare_logger.info("Position limits: %d/%d" % (self.settings.MIN_POSITION, self.settings.MAX_POSITION))
-            if paper_position['currentQty'] != 0:
-                compare_logger.info("Avg Cost Price: %.*f" % (tickLog, float(paper_position['avgCostPrice'])))
-                compare_logger.info("Avg Entry Price: %.*f" % (tickLog, float(paper_position['avgEntryPrice'])))
-            compare_logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - 0))
-            compare_logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
+        logger.info("Current XBT Balance: %.6f" % XBt_to_XBT(self.start_XBt))
+        logger.info("Current Contract Position: %d" % self.running_qty)
+        if self.settings.CHECK_POSITION_LIMITS:
+            logger.info("Position limits: %d/%d" % (self.settings.MIN_POSITION, self.settings.MAX_POSITION))
+        if position['currentQty'] != 0:
+            logger.info("Avg Cost Price: %.*f" % (tickLog, float(position['avgCostPrice'])))
+            logger.info("Avg Entry Price: %.*f" % (tickLog, float(position['avgEntryPrice'])))
+        logger.info("Contracts Traded This Run: %d" % (self.exchange.contracts_this_run() - self.starting_qty))
+        logger.info("Total Contract Delta: %.4f XBT" % self.exchange.calc_delta()['spot'])
 
     def get_ticker(self):
         ticker = self.exchange.get_ticker()
