@@ -50,7 +50,7 @@ class ccxtInterface:
         # 'ordStatus' - 'Filled', 'Canceled', 'New'
         if symbol is None:
             symbol = self.symbol
-        orders = self.exchange.fetchOrders(symbol)
+        orders = self.exchange.fetchOpenOrders(symbol)
         for order in orders:
             order['side'] = 'Buy' if order['side'] == 'buy' else 'Sell'
             order['orderID'] = order['id']
@@ -188,7 +188,6 @@ class ccxtInterface:
             raise Exception("Market %s is not open!" % symbol)
         else:
             return True
-
 
     def is_open(self):
         return self.check_market_open()

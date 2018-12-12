@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch, Mock
 from unittest import TestCase
-from market_maker.ccxt import ccxtInterface
+from market_maker.ccxt_interface import ccxtInterface
 
 
 class Test_Exchange_Interface(TestCase):
@@ -105,39 +105,39 @@ class Test_Exchange_Interface(TestCase):
         with patch.object(ccxtInterface, "__init__", lambda x, **params: None):
             exchange = ccxtInterface()
             exchange.exchange = MagicMock()
-            exchange.exchange.fetchOrders.return_value = [
-                { 'id': '9dfe9ad7-601f-4926-a893-4095e769b65b',
-                  'info': {'id': '9dfe9ad7-601f-4926-a893-4095e769b65b',
-                   'price': '10000.00000000',
-                   'size': '0.01000000',
-                   'product_id': 'BTC-USD',
-                   'side': 'sell',
-                   'type': 'limit',
-                   'time_in_force': 'GTC',
-                   'post_only': False,
-                   'created_at': '2018-12-04T22:34:55.158107Z',
-                   'fill_fees': '0.0000000000000000',
-                   'filled_size': '0.00000000',
-                   'executed_value': '0.0000000000000000',
-                   'status': 'open',
-                   'settled': False},
-                  'timestamp': 1543962895158,
-                  'datetime': '2018-12-04T22:34:55.158Z',
-                  'lastTradeTimestamp': None,
-                  'status': 'closed',
-                  'symbol': 'BTC/USD',
-                  'type': 'limit',
-                  'side': 'sell',
-                  'price': 10000.0,
-                  'cost': 0.0,
-                  'amount': 0.01,
-                  'filled': 0.0,
-                  'remaining': 0.01,
-                  'fee': {'cost': 0.0, 'currency': None, 'rate': None}}]
+            exchange.exchange.fetchOpenOrders.return_value = [
+                {'id': '9dfe9ad7-601f-4926-a893-4095e769b65b',
+                 'info': {'id': '9dfe9ad7-601f-4926-a893-4095e769b65b',
+                          'price': '10000.00000000',
+                          'size': '0.01000000',
+                          'product_id': 'BTC-USD',
+                          'side': 'sell',
+                          'type': 'limit',
+                          'time_in_force': 'GTC',
+                          'post_only': False,
+                          'created_at': '2018-12-04T22:34:55.158107Z',
+                          'fill_fees': '0.0000000000000000',
+                          'filled_size': '0.00000000',
+                          'executed_value': '0.0000000000000000',
+                          'status': 'open',
+                          'settled': False},
+                 'timestamp': 1543962895158,
+                 'datetime': '2018-12-04T22:34:55.158Z',
+                 'lastTradeTimestamp': None,
+                 'status': 'open',
+                 'symbol': 'BTC/USD',
+                 'type': 'limit',
+                 'side': 'sell',
+                 'price': 10000.0,
+                 'cost': 0.0,
+                 'amount': 0.01,
+                 'filled': 0.0,
+                 'remaining': 0.01,
+                 'fee': {'cost': 0.0, 'currency': None, 'rate': None}}]
             orders = exchange.get_orders('BTC/USD')
             assert orders[0]['side'] == 'Sell'
             assert orders[0]['orderID'] == '9dfe9ad7-601f-4926-a893-4095e769b65b'
-            assert orders[0]['ordStatus'] == 'Canceled'
+            assert orders[0]['ordStatus'] == 'Open'
             assert orders[0]['orderQty'] == 0.01
 
     def test_create_orders(self):
