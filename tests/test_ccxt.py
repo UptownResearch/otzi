@@ -1,20 +1,15 @@
 from unittest.mock import MagicMock, patch, Mock
 from unittest import TestCase
 from market_maker.ccxt_interface import ccxtInterface
+from ccxt.base.errors import OrderNotFound
 
 
 class Test_Exchange_Interface(TestCase):
 
     def setUp(self):
-        #self.auth_patch = patch.object(exchange_interface, 'AWS4Auth')
-        #self.requests_patch = patch.object(exchange_interface, 'requests')
-        #self.auth = self.auth_patch.start()
-        #self.requests = self.requests_patch.start()
         pass
 
     def tearDown(self):
-        #self.auth_patch.stop()
-        #self.requests_patch.stop()
         pass
 
     def test_create_class(self):
@@ -64,6 +59,7 @@ class Test_Exchange_Interface(TestCase):
             instrument = exchange.get_instrument('BTC/USD')
             assert 'tickLog' in instrument
             assert instrument['tickLog'] == 2
+            assert instrument['tickSize'] == 0.01
 
     def test_get_ticker(self):
         with patch.object(ccxtInterface, "__init__", lambda x, **params: None):
@@ -177,7 +173,7 @@ class Test_Exchange_Interface(TestCase):
                  'fee': {'cost': 0.0, 'currency': None, 'rate': None}}
             order = {
                 'type': 'limit',
-                'side': 'sell',
+                'side': 'Sell',
                 'price': 12000.0,
                 'orderQty': 0.01
             }
@@ -210,6 +206,23 @@ class Test_Exchange_Interface(TestCase):
         with patch.object(ccxtInterface, "__init__", lambda x, **params: None):
             exchange = ccxtInterface()
             exchange.exchange = MagicMock()
+            exchange.symbol = 'BTC/USD'
+            exchange.logger = MagicMock()
+            order = {
+                'side': 'sell',
+                'price': 12000.0,
+                'orderQty': 0.01,
+                'orderID': '12'
+            }
+            exchange.cancel_order(order)
+            exchange.exchange.cancelOrder.assert_called()
+
+    def test_cancel_order_exception(self):
+        with patch.object(ccxtInterface, "__init__", lambda x, **params: None):
+            exchange = ccxtInterface()
+            exchange.exchange = MagicMock()
+            # exchange.exchange.cancelOrder should throw ccxt.base.errors.OrderNotFound
+            exchange.exchange.cancelOrder.side_effect = OrderNotFound('gdax order not found')
             exchange.symbol = 'BTC/USD'
             exchange.logger = MagicMock()
             order = {

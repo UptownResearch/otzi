@@ -24,7 +24,7 @@ sys.path.insert(0, CODE_DIR)
 from market_maker.utils import constants, errors, math
 #from market_maker import PAPERTRADING_tracker
 from market_maker.exchange_interface import ExchangeInterface
-from market_maker.coinbase.order_book import OrderBook
+#from market_maker.coinbase.order_book import OrderBook
 
 import logging
 import random
@@ -54,9 +54,9 @@ class OrderManager:
             self.exchange = ExchangeInterface(self.settings.DRY_RUN, settings=self.settings)
         else:
             self.exchange = exchange
-        if not self.settings.BACKTEST:
-            self.coinbase = OrderBook(product_id='BTC-USD')
-            self.coinbase.start()
+        #if not self.settings.BACKTEST:
+        #    self.coinbase = OrderBook(product_id='BTC-USD')
+        #    self.coinbase.start()
         # Once exchange is created, register exit handler that will always cancel orders
         # on any error.
         atexit.register(self.exit)
@@ -387,12 +387,13 @@ class OrderManager:
         logger.info("Amending Orders %s" % json.dumps(to_amend))
         for amended_order in reversed(to_amend):
             reference_order = [o for o in existing_orders if o['orderID'] == amended_order['orderID']][0]
-            logger.info("Amending %4s: %d @ %.*f to %d @ %.*f (%+.*f)" % (
-                amended_order['side'],
-                reference_order['leavesQty'], tickLog, reference_order['price'],
-                (amended_order['orderQty'] - reference_order['cumQty']), tickLog, amended_order['price'],
-                tickLog, (amended_order['price'] - reference_order['price'])
-            ))
+            # Below is commented out because 'leavesQty is not available for CCXT
+            #logger.info("Amending %4s: %d @ %.*f to %d @ %.*f (%+.*f)" % (
+            #    amended_order['side'],
+            #    reference_order['leavesQty'], tickLog, reference_order['price'],
+            #    (amended_order['orderQty'] - reference_order['cumQty']), tickLog, amended_order['price'],
+            #    tickLog, (amended_order['price'] - reference_order['price'])
+            #))
         # This can fail if an order has closed in the time we were processing.
         # The API will send us `invalid ordStatus`, which means that the order's status (Filled/Canceled)
         # made it not amendable.
@@ -439,7 +440,8 @@ class OrderManager:
         coinbase_midprice = 0.0
         if not self.settings.BACKTEST:
             try:
-                coinbase_midprice = float(self.coinbase.get_bid()+self.coinbase.get_ask())/2
+                #coinbase_midprice = float(self.coinbase.get_bid()+self.coinbase.get_ask())/2
+                pass
             except:
                 pass
 
@@ -455,7 +457,7 @@ class OrderManager:
                     if order['price'] != buyprice:                     
                         neworder = {'orderID': order['orderID'], 
                                     'orderQty': buyamount, 'price': buyprice, 'side': "Buy", 
-                                    'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice }
+                                    'theo': midprice, 'last_price':last_price}
                         if not buy_present:     
                             buy_present = True
                             if neworder['orderQty'] > 0:
@@ -471,7 +473,7 @@ class OrderManager:
                     if order['price'] != sellprice:
                         neworder = {'orderID': order['orderID'], 
                                     'orderQty': sellamount, 'price':  sellprice, 'side': "Sell" , 
-                                    'theo': midprice, 'last_price':last_price, 'coinbase_mid': coinbase_midprice}
+                                    'theo': midprice, 'last_price':last_price}
                         if not sell_present:     
                             sell_present = True
                             if neworder['orderQty'] > 0:
@@ -487,15 +489,15 @@ class OrderManager:
                 side = "Buy" if order['side'] == "Sell" else "Sell"
                 size = buyamount if order['side'] == "Sell" else sellamount 
                 price = buyprice if order['side'] == "Sell" else sellprice
-                neworder = {'price':  price, 'orderQty': size, 'side': side, 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
+                neworder = {'price':  price, 'orderQty': size, 'side': side, 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000)  }
                 if neworder['orderQty'] > 0:
                     to_create.append(neworder)
         else:
             #cancel existing orders and create new ones
             logger.info("Length of existing orders: %d" % (len(existing_orders)))
             self.exchange.cancel_all_orders()
-            buyorder = {'price':  buyprice, 'orderQty': buyamount, 'side': "Buy", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
-            sellorder = {'price':  sellprice, 'orderQty': sellamount, 'side': "Sell", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000), 'coinbase_mid': coinbase_midprice }
+            buyorder = {'price':  buyprice, 'orderQty': buyamount, 'side': "Buy", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000)  }
+            sellorder = {'price':  sellprice, 'orderQty': sellamount, 'side': "Sell", 'theo': midprice, 'last_price':last_price, 'orderID': random.randint(0, 100000) }
             if buyorder['orderQty'] > 0:
                 to_create.append(buyorder)
             if sellorder['orderQty'] > 0: 
@@ -679,6 +681,7 @@ class OrderManager:
         sys.exit()
 
     def run_loop(self):
+        print("Entered Run Loop.")
         def print_output():
             if not self.settings.BACKTEST:    
                 sys.stdout.write("-----\n")

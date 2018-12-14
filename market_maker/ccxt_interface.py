@@ -1,6 +1,7 @@
 import ccxt
 import decimal
 import logging
+from ccxt.base.errors import OrderNotFound
 
 testCredentials = {
             'apiKey': '46b32c0f5a32b7c263b4d966aebf995a',
@@ -31,6 +32,7 @@ class ccxtInterface:
         instrument = markets[symbol]
         tickSize = instrument['info']['quote_increment']
         instrument['tickLog'] = decimal.Decimal(str(tickSize)).as_tuple().exponent * -1
+        instrument['tickSize'] = float(tickSize)
         return instrument
 
     def get_ticker(self, symbol=None):
@@ -74,7 +76,7 @@ class ccxtInterface:
         account = self._get_base_currency(symbol)
         position_array = self.exchange.fetchBalance()['total']
         if account not in position_array:
-            return {'avgCostPrice':0.0, 'avgEntryPrice':0.0}
+            return {'currentQty': 0.0, 'avgCostPrice': 0.0, 'avgEntryPrice': 0.0}
         else:
             position_val = position_array[account]
             position = {'currentQty': position_val}
@@ -140,6 +142,7 @@ class ccxtInterface:
             type = 'limit'
         else:
             type = order['type']
+        order['side'] = order['side'].lower()
         self.logger.info("Creating Order: %s %d @ %.2f" % (
              order['side'], order['orderQty'], order['price']))
         return self.exchange.createOrder(
@@ -168,7 +171,10 @@ class ccxtInterface:
 
     def cancel_order(self, order):
         self.logger.info("Canceling %s: %s %d @ %.2f" % (order['orderID'], order['side'], order['orderQty'], order['price']))
-        self.exchange.cancelOrder(order['orderID'])
+        try:
+            self.exchange.cancelOrder(order['orderID'])
+        except OrderNotFound:
+            self.logger.warning("Order %s not found. Ignoring." % order['orderID'])
 
     def cancel_all_orders(self):
         orders = self.get_orders()
