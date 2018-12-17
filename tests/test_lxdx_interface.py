@@ -54,8 +54,9 @@ class Test_Exchange_Interface(TestCase):
             result = exchange.get_instrument()
             instrument = exchange.get_instrument("btc-tusd")
             assert 'tickLog' in instrument
-            assert instrument['tickLog'] == 3
-            assert instrument['tickSize'] == 0.001
+            print(instrument['tickLog'])
+            assert instrument['tickLog'] == 1
+            assert instrument['tickSize'] == 1
 
 
     def test_get_ticker(self):
@@ -149,7 +150,8 @@ class Test_Exchange_Interface(TestCase):
                 'type': 'limit',
                 'side': 'Buy',
                 'price': 4400.0,
-                'orderQty': 0.1
+                'orderQty': 0.1,
+                'postonly': True
             }
             exchange.create_order(order)
             exchange.account.place.assert_called_with(4400, 0.1, 'btc-tusd', 'buy', time_in_force='DAY',

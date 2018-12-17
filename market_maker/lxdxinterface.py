@@ -1,13 +1,16 @@
 import sys
 from os.path import dirname, abspath, join
 
+import logging
+import decimal
+
 THIS_DIR = dirname(__file__)
 CODE_DIR = abspath(THIS_DIR)
 sys.path.insert(0, CODE_DIR)
 
 from market_maker.lxdx import auth_lxdx
 from market_maker.lxdx import wslxdx
-import logging
+
 
 class lxdxInterface:
 
@@ -33,8 +36,8 @@ class lxdxInterface:
         if not symbol in products:
             return {}
         instrument = products[symbol]
-        instrument['tickLog'] = int(instrument["quotation_tick_size_decimals"])
-        instrument['tickSize'] = 1.0 / 10**instrument['tickLog']
+        instrument['tickSize'] = float(instrument['price_tick_size'])
+        instrument['tickLog'] = decimal.Decimal(str(instrument['tickSize'])).as_tuple().exponent * -1
         return instrument
 
     def get_ticker(self, symbol=None):
@@ -71,8 +74,9 @@ class lxdxInterface:
             type = 'limit'
         else:
             type = order['type']
+        postonly = order.get('postonly', 'true')
         order['side'] = order['side'].lower()
-        self.logger.info("Creating Order: %s %d @ %.2f" % (
+        self.logger.info("Creating Order: %s %.2f @ %.2f" % (
              order['side'], order['orderQty'], order['price']))
         return self.account.place(order['price'],
                                   amount,
@@ -80,7 +84,7 @@ class lxdxInterface:
                                   order['side'],
                                   time_in_force='DAY',
                                   type = type,
-                                  post_only=True)
+                                  post_only=postonly)
 
     def create_bulk_orders(self, orders):
         returned = []

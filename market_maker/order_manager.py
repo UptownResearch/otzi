@@ -436,7 +436,10 @@ class OrderManager:
             self.exchange.cancel_all_orders()
             return
         buy_present = sell_present = False
-        last_price = self.exchange.recent_trades()[-1]['price']
+        try:
+            last_price = self.exchange.recent_trades()[-1]['price']
+        except:
+            last_price = 0.0
         coinbase_midprice = 0.0
         if not self.settings.BACKTEST:
             try:
