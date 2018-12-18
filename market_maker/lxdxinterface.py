@@ -74,6 +74,7 @@ class lxdxInterface:
             type = 'limit'
         else:
             type = order['type']
+        time_in_force = order.get('time_in_force', 'DAY')
         postonly = order.get('postonly', 'true')
         order['side'] = order['side'].lower()
         self.logger.info("Creating Order: %s %.2f @ %.2f" % (
@@ -82,7 +83,7 @@ class lxdxInterface:
                                   amount,
                                   symbol,
                                   order['side'],
-                                  time_in_force='DAY',
+                                  time_in_force=time_in_force,
                                   type = type,
                                   post_only=postonly)
 

@@ -131,12 +131,12 @@ class AccountConnection:
     # Private methods
     #
 
-    def _post(self, path, postdict={}):
+    def _post(self, path, postdict={}, seconds=1):
         request_id = self.get_request_id()
         postdict["request_id"] = request_id
         request_response = self._curl_exchange(path=path,
                                                verb='POST', postdict=postdict)
-        self._wait_for_response_to_request(request_id)
+        self._wait_for_response_to_request(request_id, seconds=seconds)
         ws_result = self._is_request_id_available(request_id)
         if not ws_result:
             self.logger.warning("Timed out requesting path %s. Request #: %s." % (path, request_id))
@@ -166,6 +166,8 @@ class AccountConnection:
 
         message = json.loads(message)
         has_no_request_id = ['ping', 'market_closed', 'market_open']
+        if message['m'] is 'ping':
+            return
         if message['m'] in has_no_request_id:
             if message['m'] == 'market_closed' and self.open == True:
                 self.logger.info("The Market has closed! Type is %s" % message['type'])
