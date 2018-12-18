@@ -54,11 +54,14 @@ class wsLXDX:
 
         orderbook = self.data['orderBookL2']["btc-tusd"]
         result = {}
-        result['bid'] = result['buy'] = max(orderbook['bids'].keys())
-        result['ask'] = result['sell'] = min(orderbook['asks'].keys())
-        result['bidVolume'] = orderbook['bids'][result['bid']]
-        result['askVolume'] = orderbook['asks'][result['ask']]
-        result['mid'] = (result['bid'] + result['ask'])/2.0
+        if orderbook['bids'] != {}:
+            result['bid'] = result['buy'] = max(orderbook['bids'].keys())
+            result['bidVolume'] = orderbook['bids'][result['bid']]
+        if orderbook['asks'] != {}:
+            result['ask'] = result['sell'] = min(orderbook['asks'].keys())
+            result['askVolume'] = orderbook['asks'][result['ask']]
+        if 'ask' in result and 'bid' in result:
+            result['mid'] = (result['bid'] + result['ask'])/2.0
         return result
 
     def get_orderbook(self, symbol=None):

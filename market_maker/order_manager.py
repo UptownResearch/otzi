@@ -91,7 +91,8 @@ class OrderManager:
 
     def reset(self):
         self.exchange.cancel_all_orders()
-        self.sanity_check()
+        if self.settings.get('SANITY_CHECK', True):
+            self.sanity_check()
         self.print_status()
 
         # Create orders and converge.
@@ -704,7 +705,8 @@ class OrderManager:
             if self.exchange.ok_to_enter_order():
                 #self.check_file_change()
                 #sleep(self.settings.LOOP_INTERVAL)
-                self.sanity_check()  # Ensures health of mm - several cut-out points here
+                if self.settings.get('SANITY_CHECK', True):
+                    self.sanity_check()  # Ensures health of mm - several cut-out points here
 
                 # This will restart on very short downtime, but if it's longer,
                 # the MM will crash entirely as it is unable to connect to the WS on boot.
