@@ -51,6 +51,7 @@ class ExchangeInterface:
         #    self.symbol = self.settings.SYMBOL
         self.settings = settings
         self.symbol = self.settings.SYMBOL
+        self.exchange_id = 'bitmex'
         if self.settings.BACKTEST:
             self.bitmex = BitMEXbacktest( settings = self.settings)
         else:
