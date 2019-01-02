@@ -305,7 +305,7 @@ class Test_OrderManager(TestCase):
         self.om.exchange.create_bulk_orders.assert_called()
         assert len(self.om.exchange.create_bulk_orders.call_args[0][0]) == 2
 
-    def test_desired_to_orders_update_orders(self):
+    def test_desired_to_orders_update_orders_(self):
         self.orderManager.reset =  MagicMock()
         self.om = self.orderManager(settings= self.settings_mock)
         self.om.exchange.get_instrument.return_value = {'tickLog': 1}
@@ -361,6 +361,7 @@ class Test_OrderManager(TestCase):
 
 
     def test_desired_to_orders_cancels_extra_orders(self):
+        # This test is currently being ignored! Same name as next test!
         self.orderManager.reset =  MagicMock()
         self.om = self.orderManager(settings= self.settings_mock)
         self.om.exchange.get_instrument.return_value = {'tickLog': 1}
