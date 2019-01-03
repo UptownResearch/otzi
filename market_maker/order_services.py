@@ -1,6 +1,7 @@
 import random
 import logging
 import json
+import requests
 
 logger = logging.getLogger("root")
 
