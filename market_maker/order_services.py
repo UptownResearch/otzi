@@ -43,6 +43,8 @@ class orderServices:
         for order in reversed(to_create):
             logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
             #compare_logger.info("%4s %d @ %.*f" % (order['side'], order['orderQty'], tickLog, order['price']))
+        # TO-DO: Add handling for ccxt.base.errors.InsufficientFunds
+        # Example: ccxt.base.errors.InsufficientFunds: gdax Insufficient funds
         exchange.create_bulk_orders(to_create)
 
 
