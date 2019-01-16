@@ -142,15 +142,20 @@ class ccxtInterface:
             type = 'limit'
         else:
             type = order['type']
+        if 'params' not in order:
+            params = {}
+        else:
+            params = order['params']
         order['side'] = order['side'].lower()
-        self.logger.info("Creating Order: %s %d @ %.2f" % (
+        self.logger.info("Creating Order: %s %.2f @ %.2f" % (
              order['side'], order['orderQty'], order['price']))
         return self.exchange.createOrder(
                                     symbol,
                                     type,
                                     order['side'],
                                     amount,
-                                    order['price']
+                                    order['price'],
+                                    params
                                     )
 
     def create_bulk_orders(self, orders):
@@ -170,7 +175,7 @@ class ccxtInterface:
             self.create_order(new_order)
 
     def cancel_order(self, order):
-        self.logger.info("Canceling %s: %s %d @ %.2f" % (order['orderID'], order['side'], order['orderQty'], order['price']))
+        self.logger.info("Canceling %s: %s %.2f @ %.2f" % (order['orderID'], order['side'], order['orderQty'], order['price']))
         try:
             self.exchange.cancelOrder(order['orderID'])
         except OrderNotFound:
